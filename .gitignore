@@ -1,0 +1,18 @@
+# Ignore all object files
+*.o
+
+# Ignore all files without an extension (likely Linux executables)
+# Matches files that don't contain a dot in their filename
+# Example: 'myprogram' wird ignoriert, aber 'main.c' oder 'README.md' nicht
+# -------------------------------------------------------------
+# 1. Ignore everything
+*
+
+# 2. Allow files that have an extension (e.g. .c, .h, .md, etc.)
+!*.*
+
+# 3. Don't ignore directories (important for structure)
+!*/
+
+# 4. Always keep .gitignore itself
+!.gitignore
