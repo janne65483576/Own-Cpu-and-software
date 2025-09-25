@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #define MAX_MNEMONIC_LEN 3
-#define MAX_OPPERNAD_LEN 20 // + 1 because null termination
+#define MAX_OPPERNAD_LEN 3 // + 1 because null termination
 
 typedef enum
 {
@@ -82,12 +82,12 @@ void parse_operand(operand *operand_struct, char *operand_text)
 void parse_instruction(instruction *instruction, char *instruction_text)
 {
     char mnemonic[MAX_MNEMONIC_LEN];
-    char op_1_str[MAX_OPPERNAD_LEN];
-    char op_2_str[MAX_OPPERNAD_LEN];
 
     int operand_count = 0;
     int i = 0;
     int j = 0;
+
+    //TODO: think about adding a loop which truncates the string at spaces
 
     for (; instruction_text[i] != ' ' && i < MAX_MNEMONIC_LEN; i++)
     {
@@ -102,6 +102,8 @@ void parse_instruction(instruction *instruction, char *instruction_text)
 
     // add the first operand to op_1_str. Quit the loop if a comma or a space is found.
     // also if the MAX_OPPERNAD_LEN or the end of instrcution text is reached
+    char op_1_str[MAX_OPPERNAD_LEN];
+
     while (instruction_text[i] != ' ' && instruction_text[i] != ',' && j < MAX_OPPERNAD_LEN && instruction_text[i] != '\0') {
         op_1_str[j++] = instruction_text[i++];
     }
@@ -109,17 +111,19 @@ void parse_instruction(instruction *instruction, char *instruction_text)
     if (j >= MAX_OPPERNAD_LEN)
     {
         op_1_str[j - 1] = '\0';
-        printf("Operand %s is to long.", op_1_str);
+        printf("Operand %s... is to long.", op_1_str);
         exit(EXIT_FAILURE);
     }
     
-    if (j != 0)
+    // test if the the op_1_str has any data
+    if (j == 0)
     {
-        operand_count++;
-        op_1_str[j] = '\0';
-        j = 0;
         goto end;
     }
+
+    operand_count++;
+    op_1_str[j] = '\0';
+    j = 0;
 
     // skip zeros and commas
     while(instruction_text[i] == ' ' || instruction_text[i] == ',')
@@ -129,6 +133,8 @@ void parse_instruction(instruction *instruction, char *instruction_text)
 
     // add the first operand to op_1_str. Quit the loop if a comma or a space is found.
     // also if the MAX_OPPERNAD_LEN or the end of instrcution text is reached
+    char op_2_str[MAX_OPPERNAD_LEN];
+
     while (instruction_text[i] != ' ' && instruction_text[i] != ',' && j < MAX_OPPERNAD_LEN && instruction_text[i] != '\0') {
         op_2_str[j++] = instruction_text[i++];
     }
@@ -136,26 +142,47 @@ void parse_instruction(instruction *instruction, char *instruction_text)
     if (j >= MAX_OPPERNAD_LEN)
     {
         op_2_str[j - 1] = '\0';
-        printf("Operand %s is to long.", op_2_str);
+        printf("Operand %s... is to long.", op_2_str);
         exit(EXIT_FAILURE);
     }
 
-    if (j != 0)
+    // test if the the op_2_str has any data
+    if (j == 0)
     {
-        operand_count++;
-        op_2_str[j] = '\0';
+        goto end;
     }
     
-    printf("%s\n%s", op_1_str, op_2_str);
-
-    // operand op_1;
-    // operand op_2;
-    // parse_operand(&op_1, op_1_str);
-    // parse_operand(&op_2, op_2_str);
+    operand_count++;
+    op_2_str[j] = '\0';
+    j = 0;
 
     end:
-        printf("%d", operand_count);
-        return;
+    switch(operand_count)
+    {
+        case 0:
+            printf("0 operands\n");
+        break;
+
+        case 1:
+        {
+            operand op_1;
+            //parse_operand(&op_1, op_1_str);
+            printf("1 operand: %s\n", op_1_str);
+            break;
+        }
+
+        case 2:
+        {
+            operand op_1;
+            operand op_2;
+            //parse_operand(&op_1, op_1_str);
+            //parse_operand(&op_2, op_2_str)
+            printf("2 operands: %s and %s\n", op_1_str, op_2_str);
+            break;
+        }
+    }
+
+    return;
 }
 
 typedef enum {
@@ -167,7 +194,7 @@ typedef enum {
 
 char *lexer(char *assembly, long asm_size, long *tokens_size)
 {   
-    char *instruction_text = "INC";
+    char *instruction_text = "INC r11, r11";
 
     instruction instruction_struct;
     parse_instruction(&instruction_struct, instruction_text);
