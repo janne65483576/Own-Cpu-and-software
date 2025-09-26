@@ -4,8 +4,9 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define MAX_MNEMONIC_LEN 3
-#define MAX_OPPERNAD_LEN 3 // + 1 because null termination
+#define MAX_MNEMONIC_LEN 10
+#define MAX_OPPERNAD_LEN 20 // + 1 because null termination
+#define MAX_OPERAND 3
 
 typedef enum
 {
@@ -71,118 +72,29 @@ uint8_t mnemonic_to_opcode(char *mnemonic, bool is_register)
     exit(EXIT_FAILURE);
 }
 
-void parse_operand(operand *operand_struct, char *operand_text)
+void parse_instruction_test(instruction *instruction, char *instruction_text)
 {
-    for (int i = 0; operand_text[i] != '\0'; i++)
-    {
-        printf("%c", operand_text[i]);
-    }
-}
-
-void parse_instruction(instruction *instruction, char *instruction_text)
-{
-    char mnemonic[MAX_MNEMONIC_LEN];
-
+    char *operands[MAX_OPERAND];
     int operand_count = 0;
-    int i = 0;
-    int j = 0;
 
-    //TODO: think about adding a loop which truncates the string at spaces
+    operands[0] = strtok(instruction_text, " ,");
 
-    for (; instruction_text[i] != ' ' && i < MAX_MNEMONIC_LEN; i++)
+    for (int i = 1; i < MAX_OPERAND; i++)
     {
-        mnemonic[i] = instruction_text[i];
-    }
-
-    // skip zeros and commas
-    while(instruction_text[i] == ' ' || instruction_text[i] == ',')
-    {
-        i++;
-    }
-
-    // add the first operand to op_1_str. Quit the loop if a comma or a space is found.
-    // also if the MAX_OPPERNAD_LEN or the end of instrcution text is reached
-    char op_1_str[MAX_OPPERNAD_LEN];
-
-    while (instruction_text[i] != ' ' && instruction_text[i] != ',' && j < MAX_OPPERNAD_LEN && instruction_text[i] != '\0') {
-        op_1_str[j++] = instruction_text[i++];
-    }
-
-    if (j >= MAX_OPPERNAD_LEN)
-    {
-        op_1_str[j - 1] = '\0';
-        printf("Operand %s... is to long.", op_1_str);
-        exit(EXIT_FAILURE);
-    }
-    
-    // test if the the op_1_str has any data
-    if (j == 0)
-    {
-        goto end;
-    }
-
-    operand_count++;
-    op_1_str[j] = '\0';
-    j = 0;
-
-    // skip zeros and commas
-    while(instruction_text[i] == ' ' || instruction_text[i] == ',')
-    {
-        i++;
-    }
-
-    // add the first operand to op_1_str. Quit the loop if a comma or a space is found.
-    // also if the MAX_OPPERNAD_LEN or the end of instrcution text is reached
-    char op_2_str[MAX_OPPERNAD_LEN];
-
-    while (instruction_text[i] != ' ' && instruction_text[i] != ',' && j < MAX_OPPERNAD_LEN && instruction_text[i] != '\0') {
-        op_2_str[j++] = instruction_text[i++];
-    }
-    
-    if (j >= MAX_OPPERNAD_LEN)
-    {
-        op_2_str[j - 1] = '\0';
-        printf("Operand %s... is to long.", op_2_str);
-        exit(EXIT_FAILURE);
-    }
-
-    // test if the the op_2_str has any data
-    if (j == 0)
-    {
-        goto end;
-    }
-    
-    operand_count++;
-    op_2_str[j] = '\0';
-    j = 0;
-
-    end:
-    switch(operand_count)
-    {
-        case 0:
-            printf("0 operands\n");
-        break;
-
-        case 1:
+        operands[i] = strtok(NULL, " ,");
+        if(operands[i] == NULL)
         {
-            operand op_1;
-            //parse_operand(&op_1, op_1_str);
-            printf("1 operand: %s\n", op_1_str);
             break;
         }
-
-        case 2:
-        {
-            operand op_1;
-            operand op_2;
-            //parse_operand(&op_1, op_1_str);
-            //parse_operand(&op_2, op_2_str)
-            printf("2 operands: %s and %s\n", op_1_str, op_2_str);
-            break;
-        }
+        operand_count++;
     }
 
-    return;
+    printf("mnemonic : %s\n", operands[0]);
+    printf("first operand : %s\n", operands[1]);
+    printf("second operand : %s\n", operands[2]);
+
+    printf("operands : %d\n", operand_count);
+
 }
 
 typedef enum {
@@ -194,10 +106,10 @@ typedef enum {
 
 char *lexer(char *assembly, long asm_size, long *tokens_size)
 {   
-    char *instruction_text = "INC r11, r11";
+    char instruction_text[] = "INC r11, ";
 
     instruction instruction_struct;
-    parse_instruction(&instruction_struct, instruction_text);
+    parse_instruction_test(&instruction_struct, instruction_text);
 
     //print_instruction(&instruction_struct);
 
