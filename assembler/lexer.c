@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
+#include <strings.h>
 
 #define MAX_MNEMONIC_LEN 10
 #define MAX_OPPERNAD_LEN 20 // + 1 because null termination
@@ -13,9 +14,15 @@ typedef enum
     NOP, ADDr, SUBr, ADD, SUB, JMP, MOVr, MOVe, ST, LD // MOVe(xtended)
 } opcodes;
 
+typedef enum
+{
+    REGISTER, MAR, IMM_16, IMM_8, LABLE
+} operand_type;
+
 typedef struct{
     uint16_t value;
-    char *lable; // if lable == NULL, use value
+    operand_type op_type;
+    char *lable; // only used if operand_type == LABLE
 } operand;
 
 typedef struct{
@@ -72,7 +79,35 @@ uint8_t mnemonic_to_opcode(char *mnemonic, bool is_register)
     exit(EXIT_FAILURE);
 }
 
-void parse_instruction_test(instruction *instruction, char *instruction_text)
+void parse_operand(operand *operand_struct, char *operand_text)
+{
+    if (operand_text[0] == 'r')
+    {   
+        if (operand_text[1] == '\0')
+        {
+            printf("No register number specified\n");
+            exit(EXIT_FAILURE);
+        }
+
+        if (operand_text[1] > 3)
+        {
+            printf("Invalid register %c\n", operand_text[1]);
+            exit(EXIT_FAILURE);
+        }
+        operand_struct->op_type = REGISTER;
+        operand_struct->value = operand_text[1];
+        return;
+    }
+
+    if (strcasecmp(operand_text, "mar"))
+    {
+        operand_struct->op_type = MAR;
+        return;
+    }
+
+}
+
+void parse_instruction(instruction *instruction, char *instruction_text)
 {
     char *operands[MAX_OPERAND];
     int operand_count = 0;
@@ -90,6 +125,7 @@ void parse_instruction_test(instruction *instruction, char *instruction_text)
     }
 
     printf("mnemonic : %s\n", operands[0]);
+
     printf("first operand : %s\n", operands[1]);
     printf("second operand : %s\n", operands[2]);
 
@@ -109,7 +145,7 @@ char *lexer(char *assembly, long asm_size, long *tokens_size)
     char instruction_text[] = "INC r11, ";
 
     instruction instruction_struct;
-    parse_instruction_test(&instruction_struct, instruction_text);
+    parse_instruction(&instruction_struct, instruction_text);
 
     //print_instruction(&instruction_struct);
 
