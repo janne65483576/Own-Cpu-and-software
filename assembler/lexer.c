@@ -16,11 +16,11 @@ typedef enum
 
 typedef enum
 {
-    REGISTER, MAR, IMM_16, IMM_8, LABLE
+    REGISTER, MAR, ADDR_16, IMM_8, ADDR_8, LABLE
 } operand_type;
 
 typedef struct{
-    uint16_t value;
+    int16_t value;
     operand_type op_type;
     char *lable; // only used if operand_type == LABLE
 } operand;
@@ -80,31 +80,29 @@ uint8_t mnemonic_to_opcode(char *mnemonic, bool is_register)
 }
 
 void parse_operand(operand *operand_struct, char *operand_text)
-{
-    if (operand_text[0] == 'r')
-    {   
-        if (operand_text[1] == '\0')
-        {
-            printf("No register number specified\n");
-            exit(EXIT_FAILURE);
-        }
+{   
+    char *endptr;
 
-        if (operand_text[1] > 3)
-        {
-            printf("Invalid register %c\n", operand_text[1]);
-            exit(EXIT_FAILURE);
-        }
-        operand_struct->op_type = REGISTER;
-        operand_struct->value = operand_text[1];
-        return;
-    }
-
-    if (strcasecmp(operand_text, "mar"))
+    // check if this could be a register
+    if ((operand_text[0] == 'r') && (operand_text[1] >= '0') && (operand_text[1] <= '9'))
     {
-        operand_struct->op_type = MAR;
-        return;
-    }
+        long reg = strtol(operand_text + 1, &endptr, 10);
 
+        if (*endptr != '\0')
+        {
+            printf("Invlaid operand: %s\n", operand_text);
+            exit(EXIT_FAILURE);
+        }
+
+        if (reg < 0 || reg > 4)
+        {
+            printf("Too small or to big register: r%ld\n", reg);
+            exit(EXIT_FAILURE);
+        }
+        
+        operand_struct->op_type = REGISTER;
+        operand_struct->value = (int16_t)reg;
+    }
 }
 
 void parse_instruction(instruction *instruction, char *instruction_text)
@@ -124,12 +122,19 @@ void parse_instruction(instruction *instruction, char *instruction_text)
         operand_count++;
     }
 
-    printf("mnemonic : %s\n", operands[0]);
+    // printf("mnemonic : %s\n", operands[0]);
 
-    printf("first operand : %s\n", operands[1]);
-    printf("second operand : %s\n", operands[2]);
+    // printf("first operand : %s\n", operands[1]);
+    // printf("second operand : %s\n", operands[2]);
 
-    printf("operands : %d\n", operand_count);
+    // printf("operands : %d\n", operand_count);
+    operand operand_struct;
+    parse_operand(&operand_struct, operands[1]);
+    printf("%d", operand_struct.value);
+    if (operand_struct.op_type == REGISTER)
+    {
+        printf("valid register\n");
+    }
 
 }
 
@@ -142,7 +147,7 @@ typedef enum {
 
 char *lexer(char *assembly, long asm_size, long *tokens_size)
 {   
-    char instruction_text[] = "INC r11, ";
+    char instruction_text[] = "INC r";
 
     instruction instruction_struct;
     parse_instruction(&instruction_struct, instruction_text);
