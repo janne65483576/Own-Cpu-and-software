@@ -28,26 +28,8 @@ int main(int argc, char **argv)
 
     FILE *assembly = fopen(argv[1], "rb");
 
-    // get file size
-    fseek(assembly, 0L, SEEK_END);
-    long file_size = ftell(assembly);
-    rewind(assembly);
+    long bin_size;
+    char *bin = lexer(assembly, &bin_size);
 
-    // alocate a buffer to work with the bytes more easily
-    char *assembly_buf = (char *)malloc(file_size);
-
-    // read entire file
-    fread(assembly_buf, file_size, sizeof(uint8_t), assembly);
-
-    long tokens_size;
-    char *tokens = lexer(assembly_buf, file_size, &tokens_size);
-
-    for(int i = 0; i < tokens_size; i++)
-    {
-        printf("%c", tokens[i]);
-    }
-
-    free(tokens);
-    free(assembly_buf);
     return 0;
 }

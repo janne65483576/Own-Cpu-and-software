@@ -9,14 +9,16 @@
 #define MAX_OPPERNAD_LEN 20 // + 1 because null termination
 #define MAX_OPERAND 3
 
+#define MAX_INSTRUCTIONS 100
+
 typedef enum
 {
-    NOP, ADDr, SUBr, ADD, SUB, JMP, MOVr, MOVe, ST, LD // MOVe(xtended)
+    NOP, ADD, AND, XOR, SHR, OR, JMP, BCC, BCS, BZC, BZS, BVS, BVC, MOV, ST, LD, CALL, RET, POP, PUSH
 } opcodes;
 
 typedef enum
 {
-    REGISTER, MAR, ADDR_16, IMM_8, ADDR_8, LABLE
+    REGISTER, MAR, ADDR_16, IMM_8, ADDR_8, LABLE, UNUSED
 } operand_type;
 
 typedef struct{
@@ -27,19 +29,11 @@ typedef struct{
 
 typedef struct{
     opcodes opcode;
-    uint8_t adress_mode;
     operand op_1;
     operand op_2;
 
     uint16_t adress;
-    uint16_t imm_adress;
 } instruction;
-
-typedef struct{
-    char *mnemonic;
-    char *op_1;
-    char *op_2;
-} tmp_instruction;
 
 void print_instruction(const instruction *instr) {
     if (!instr) {
@@ -47,43 +41,35 @@ void print_instruction(const instruction *instr) {
         return;
     }
 
-    printf("Instruction:\n");
-    printf("  Opcode       : 0x%02X (%u)\n", instr->opcode, instr->opcode);
-    printf("  Address Mode : 0x%02X (%u)\n", instr->adress_mode, instr->adress_mode);
-    printf("  Register 1   : 0x%02X (%u)\n", instr->op_1.value, instr->op_1.value);
-    printf("  Register 2   : 0x%02X (%u)\n", instr->op_2.value, instr->op_2.value);
-    printf("  Address      : 0x%04X (%u)\n", instr->adress, instr->adress);
-    printf("  Imm Address  : 0x%04X (%u)\n", instr->imm_adress, instr->imm_adress);
+    //printf("opcode: %x\n", instr->opcode);
+    //putc('\n', stdout);
+    if (instr->op_1.op_type != UNUSED)
+    {
+        printf("first operand:\n");
+        printf("value: %d\n", instr->op_1.value);
+        printf("operand_type: %d\n", instr->op_1.op_type);
+    }
+    putc('\n', stdout);
+    if (instr->op_2.op_type != UNUSED)
+    {
+        printf("second operand:\n");
+        printf("value: %d\n", instr->op_2.value);
+        printf("operand_type: %d\n", instr->op_2.op_type);
+    }
+    //printf("adress: %d\n", instr->adress);
+    puts("------------------");
 }
 
-uint8_t mnemonic_to_opcode(char *mnemonic, bool is_register)
+uint8_t mnemonic_to_opcode(char *mnemonic)
 {   
-    // TODO: use a better algorithm 
-    if (strcmp(mnemonic, "NOP"))
-    {
-        return NOP;
-    }else if (strcmp(mnemonic, "ADD"))
-    {
-        return is_register ? ADDr : ADD;
-    }else if (strcmp(mnemonic, "JMP") || strcmp(mnemonic, "JC") || strcmp(mnemonic, "JZ"))
-    {
-        return JMP;
-    }else if (strcmp(mnemonic, "ST")) {
-        return ST;
-    }else if (strcmp(mnemonic, "LD")) {
-        return LD;
-    }else if (strcmp(mnemonic, "MOV")) {
-        return MOVr;
-    }
-    printf("Invalid mnemonic %s", mnemonic);
-    exit(EXIT_FAILURE);
+    // TODO Use an temporary encoding scheme
+    return 0;
 }
 
 void parse_operand(operand *operand_struct, char *operand_text)
 {   
-    if(strcasecmp(operand_text, "mar"))
+    if(strcasecmp(operand_text, "MAR") == 0)
     {
-        printf("test");
         operand_struct->op_type = MAR;
         return;
     }
@@ -186,95 +172,72 @@ void parse_instruction(instruction *instruction, char *instruction_text)
         operand_count++;
     }
 
-    // printf("mnemonic : %s\n", operands[0]);
+    instruction->opcode = mnemonic_to_opcode(operands[0]);
+    instruction->op_1.op_type = UNUSED;
+    instruction->op_2.op_type = UNUSED;
 
-    // printf("first operand : %s\n", operands[1]);
-    // printf("second operand : %s\n", operands[2]);
-
-    // printf("operands : %d\n", operand_count);
-    operand operand_struct;
-    parse_operand(&operand_struct, operands[1]);
-    
-    if (operand_struct.op_type != LABLE)
+    if (operand_count >= 1) 
     {
-        printf("value: %hu\n", operand_struct.value);
-        printf("%d\n", operand_struct.op_type);
-    }else {
-        printf("lable: %s\n", operand_struct.lable);
-        free(operand_struct.lable);
+        parse_operand(&instruction->op_1, operands[1]);
+        if (operand_count >= 2)
+        {
+            parse_operand(&instruction->op_2, operands[2]);
+        }
     }
 }
 
-typedef enum {
-    STATE_CODE,          // normal code
-    STATE_ONE_COMMENT,   // in singel line comment
-    STATE_MULTI_COMMENT, // int multi line comment
-    STATE_MULTI_END      // the first char of end seqeuz "/*" is found
-} ParserState;
+void resolve_lables(instruction *instructions)
+{
 
-char *lexer(char *assembly, long asm_size, long *tokens_size)
-{   
-    char instruction_text[] = "INC mar";
+}
 
-    instruction instruction_struct;
-    parse_instruction(&instruction_struct, instruction_text);
-
-    //print_instruction(&instruction_struct);
-
-
-    // char *tokens = (char *)malloc(asm_size * sizeof(char));
-    // long token_ptr = 0;
-    // char c;
-
-    // ParserState state = STATE_CODE;
-
-    // for (long i = 0; i < asm_size; i++) {
-    //     c = assembly[i];
-
-    //     switch (state) {
-    //         case STATE_ONE_COMMENT:
-    //             if (c == '\n') {
-    //                 state = STATE_CODE;
-    //             }
-    //             continue;
-
-    //         case STATE_MULTI_COMMENT:
-    //             if (c == '*') {
-    //                 state = STATE_MULTI_END;
-    //             }
-    //             continue;
-
-    //         case STATE_MULTI_END:
-    //             if (c == '/') {
-    //                 state = STATE_CODE;
-    //             } else if (c != '*') {
-    //                 state = STATE_MULTI_COMMENT;
-    //             }
-    //             continue;
-
-    //         case STATE_CODE:
-    //             // start singel line comment
-    //             if (c == '/' && i + 1 < asm_size && assembly[i + 1] == '/') {
-    //                 state = STATE_ONE_COMMENT;
-    //                 i++;
-    //                 continue;
-    //             }
-
-    //             // start multi line comment
-    //             if (c == '/' && i + 1 < asm_size && assembly[i + 1] == '*') {
-    //                 state = STATE_MULTI_COMMENT;
-    //                 i++;
-    //                 continue;
-    //             }
-
-    //             tokens[token_ptr++] = c;
-    //             break;
-    //     }
-    // }
-    // tokens[token_ptr++] = '\n';
-    // tokens = realloc(tokens, token_ptr);
-    // *tokens_size = token_ptr;
-    // return tokens;
+char *convert_instructions_binary(instruction *instructions)
+{
     return NULL;
+}
+
+char *lexer(FILE *assembly_file, long *tokens_size)
+{   
+    instruction instructions[MAX_INSTRUCTIONS];
+    int instruction_i = 0;
+    size_t len = 0;
+    char *line = NULL;
+    int nread = 0;
+
+    while ((nread = getline(&line, &len, assembly_file)) != -1)
+    {
+        if (nread > 0 && line[nread - 1] == '\n') {
+            line[nread - 1] = '\0';
+        }
+        
+        if (line[0] == '\0')
+        {
+            goto skip;
+        }
+
+        if (instruction_i >= MAX_INSTRUCTIONS)
+        {
+            printf("The MAX_INTRUCTIONS limit is set to low.");
+            free(line);
+            exit(EXIT_FAILURE);
+        }
+
+        printf("line: %s\n", line);
+
+        instruction curr_instruction;
+        parse_instruction(&curr_instruction, line);
+
+        instructions[instruction_i++] = curr_instruction;
+
+        skip:
+            free(line);
+            line = NULL;
+    }
+
+    void resolve_lables(instructions);
+
+    char *convert_instructions_binary(instructions);
+
     *tokens_size = 0;
+    return NULL;
 }
