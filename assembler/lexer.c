@@ -81,6 +81,13 @@ uint8_t mnemonic_to_opcode(char *mnemonic, bool is_register)
 
 void parse_operand(operand *operand_struct, char *operand_text)
 {   
+    if(strcasecmp(operand_text, "mar"))
+    {
+        printf("test");
+        operand_struct->op_type = MAR;
+        return;
+    }
+
     char *endptr;
 
     // check if this could be a register
@@ -102,7 +109,64 @@ void parse_operand(operand *operand_struct, char *operand_text)
         
         operand_struct->op_type = REGISTER;
         operand_struct->value = (int16_t)reg;
+        return;
     }
+
+    int base = 10;
+    bool is_adress = false;
+    int start_off = 0;
+    long val;
+
+    if (operand_text[0] == '%')
+    {
+        start_off++;
+        is_adress = true;
+    }
+    
+    if (operand_text[start_off] == '#')
+    {
+        base = 16;
+        start_off++;
+    }
+
+    val = strtol(operand_text + start_off, &endptr, base);
+
+    if (*endptr != '\0')
+    {
+        if (base == 16)
+        {
+            printf("Invlaid operand: %s\n", operand_text);
+            exit(EXIT_FAILURE);
+        }
+
+        operand_struct->op_type = LABLE;
+
+        int len = strlen(operand_text);
+        operand_struct->lable = (char *)malloc(len);
+        memcpy(operand_struct->lable, operand_text + 1, len);
+        return;
+    }
+
+    if (val < INT16_MIN || val > UINT16_MAX)
+    {
+        printf("Too small or to big number: %lx\n", val);
+        exit(EXIT_FAILURE);
+    }
+
+    if (val > INT8_MIN && val < INT8_MAX)
+    {
+        operand_struct->op_type = is_adress ? ADDR_8 : IMM_8;
+        operand_struct->value = val & 0xff;
+        return;
+    }
+    
+    if ((val < INT8_MIN || val > UINT8_MAX) && !is_adress) {
+        printf("A Imidiate value which isent an andress can not be greater or smaller than 8 bits. Value: %ld\n", val);
+        exit(EXIT_FAILURE);
+    }
+    
+    operand_struct->op_type = ADDR_16;
+    operand_struct->value = val & 0xffff;
 }
 
 void parse_instruction(instruction *instruction, char *instruction_text)
@@ -130,12 +194,15 @@ void parse_instruction(instruction *instruction, char *instruction_text)
     // printf("operands : %d\n", operand_count);
     operand operand_struct;
     parse_operand(&operand_struct, operands[1]);
-    printf("%d", operand_struct.value);
-    if (operand_struct.op_type == REGISTER)
+    
+    if (operand_struct.op_type != LABLE)
     {
-        printf("valid register\n");
+        printf("value: %hu\n", operand_struct.value);
+        printf("%d\n", operand_struct.op_type);
+    }else {
+        printf("lable: %s\n", operand_struct.lable);
+        free(operand_struct.lable);
     }
-
 }
 
 typedef enum {
@@ -147,7 +214,7 @@ typedef enum {
 
 char *lexer(char *assembly, long asm_size, long *tokens_size)
 {   
-    char instruction_text[] = "INC r";
+    char instruction_text[] = "INC mar";
 
     instruction instruction_struct;
     parse_instruction(&instruction_struct, instruction_text);
