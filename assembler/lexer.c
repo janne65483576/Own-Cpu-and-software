@@ -13,8 +13,16 @@
 
 typedef enum
 {
-    NOP, ADD, AND, XOR, SHR, OR, JMP, BCC, BCS, BZC, BZS, BVS, BVC, MOV, ST, LD, CALL, RET, POP, PUSH
+    ADD, ADDr, OR, ORr
 } opcodes;
+
+// sorted alphabeticly
+char *mnemonics[] = {"ADD", "AND", "BCC", "BCS", "BVC", "BVS", "BZC", "BZS", "CALL", "JMP", "LD", "MOV", "NOP", "OR", "POP", "PUSH", "RET", "SHR", "ST", "XOR"};
+
+typedef enum
+{
+    ADD_mn, AND_mn, BCC_mn, BCS_mn, BVC_mn, BVS_mn, BZC_mn, BZS_mn, CALL_mn, JMP_mn, LD_mn, MOV_mn, NOP_mn, OR_mn, POP_mn, PUSH_mn, RET_mn, SHR_mn, ST_mn, XOR_mn
+}mnemonic_enum;
 
 typedef enum
 {
@@ -60,9 +68,37 @@ void print_instruction(const instruction *instr) {
     puts("------------------");
 }
 
-uint8_t mnemonic_to_opcode(char *mnemonic)
-{   
-    // TODO Use an temporary encoding scheme
+int cmpstr(const void *a, const void *b) {
+    return strcmp(*(const char **)a, *(const char **)b);
+}
+
+uint8_t mnemonic_to_opcode(char *mnemonic, instruction *instruction)
+{
+    char **result = bsearch(mnemonic, mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0]), sizeof(char *), cmpstr);
+    
+    if(result == NULL)
+    {
+        // could be a lable
+        exit(EXIT_FAILURE);
+    }
+
+    switch((int)(result - mnemonics))
+    {
+        case ADD_mn:
+            if(instruction->op_1.op_type == REGISTER && instruction->op_2.op_type == REGISTER)
+            {
+                instruction->opcode = ADDr;
+            }else if (instruction->op_1.op_type == REGISTER && (instruction->op_2.op_type != REGISTER || instruction->op_2.op_type != UNUSED || instruction->op_2.op_type != LABLE))
+            {
+                instruction->opcode = ADD;
+            }else 
+            {
+                printf("Invalid operand types for ADD instruction.\n");
+                exit(EXIT_FAILURE);
+            } 
+
+            break;
+    }
     return 0;
 }
 
@@ -172,7 +208,6 @@ void parse_instruction(instruction *instruction, char *instruction_text)
         operand_count++;
     }
 
-    instruction->opcode = mnemonic_to_opcode(operands[0]);
     instruction->op_1.op_type = UNUSED;
     instruction->op_2.op_type = UNUSED;
 
@@ -184,19 +219,21 @@ void parse_instruction(instruction *instruction, char *instruction_text)
             parse_operand(&instruction->op_2, operands[2]);
         }
     }
+
+    mnemonic_to_opcode(operands[0], instruction);
 }
 
 void resolve_lables(instruction *instructions)
 {
-
+    
 }
 
-char *convert_instructions_binary(instruction *instructions)
+char *convert_instructions_binary(instruction *instructions, long *bin_size)
 {
     return NULL;
 }
 
-char *lexer(FILE *assembly_file, long *tokens_size)
+char *assamble(FILE *assembly_file, long *bin_size)
 {   
     instruction instructions[MAX_INSTRUCTIONS];
     int instruction_i = 0;
@@ -213,6 +250,22 @@ char *lexer(FILE *assembly_file, long *tokens_size)
         if (line[0] == '\0')
         {
             goto skip;
+        }
+
+        // check if direktive
+        for(int i = 0; line[i] != '\0'; i++)
+        {
+            if(line[i] == '.')
+            {
+                //directive
+                break;
+            }
+            
+            if(line[i] != ' ')
+            {
+                // no directive
+                break;
+            }
         }
 
         if (instruction_i >= MAX_INSTRUCTIONS)
@@ -234,10 +287,9 @@ char *lexer(FILE *assembly_file, long *tokens_size)
             line = NULL;
     }
 
-    void resolve_lables(instructions);
+    resolve_lables(instructions);
 
-    char *convert_instructions_binary(instructions);
+    char *binary = convert_instructions_binary(instructions, bin_size);
 
-    *tokens_size = 0;
-    return NULL;
+    return binary;
 }

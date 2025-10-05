@@ -3,6 +3,6 @@
 
 #include <stdio.h>
 
-char *lexer(FILE *assembly, long *tokens_size);
+char *assamble(FILE *assembly_file, long *bin_size);
 
 #endif

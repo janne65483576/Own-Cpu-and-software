@@ -29,7 +29,7 @@ int main(int argc, char **argv)
     FILE *assembly = fopen(argv[1], "rb");
 
     long bin_size;
-    char *bin = lexer(assembly, &bin_size);
+    char *bin = assamble(assembly, &bin_size);
 
     return 0;
 }
