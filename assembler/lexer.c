@@ -11,17 +11,19 @@
 
 #define MAX_INSTRUCTIONS 100
 
+// real opcodes 
+// OOI = one operand instruction
 typedef enum
 {
-    ADD, ADDr, OR, ORr
+    OOI, ADD, ADDr, AND, ANDr, XOR, XORr, OR, ORr, SH, LD, ST, JMP, JMPn, MOV, MOVe
 } opcodes;
 
 // sorted alphabeticly
-char *mnemonics[] = {"ADD", "AND", "BCC", "BCS", "BVC", "BVS", "BZC", "BZS", "CALL", "JMP", "LD", "MOV", "NOP", "OR", "POP", "PUSH", "RET", "SHR", "ST", "XOR"};
+char *mnemonics[] = {"ADD", "ADDr", "AND", "ANDr", "BCC", "BCS", "BVC", "BVS", "BZC", "BZS", "CALL", "CLF", "DEC", "INC", "JMP", "LD", "MOV", "MOVe", "NOP", "NOT", "OR", "ORr", "POP", "PUSH", "RET", "SH", "ST", "XOR", "XORr"};
 
 typedef enum
 {
-    ADD_mn, AND_mn, BCC_mn, BCS_mn, BVC_mn, BVS_mn, BZC_mn, BZS_mn, CALL_mn, JMP_mn, LD_mn, MOV_mn, NOP_mn, OR_mn, POP_mn, PUSH_mn, RET_mn, SHR_mn, ST_mn, XOR_mn
+    ADD_mn, ADDr_mn, AND_mn, ANDr_mn, BCC_mn, BCS_mn, BVC_mn, BVS_mn, BZC_mn, BZS_mn, CALL_mn, CLF_mn, DEC_mn, INC_mn, JMP_mn, LD_mn, MOV_mn, MOVe_mn, NOP_mn, NOT_mn, OR_mn, ORr_mn, POP_mn, PUSH_mn, RET_mn, SH_mn, ST_mn, XOR_mn, XORr_mn
 }mnemonic_enum;
 
 typedef enum
@@ -74,6 +76,12 @@ int cmpstr(const void *a, const void *b) {
 
 uint8_t mnemonic_to_opcode(char *mnemonic, instruction *instruction)
 {
+    if (instruction->op_1.op_type == LABLE || instruction->op_2.op_type == LABLE)
+    {
+        // TODO: handle lables
+        return 1;
+    }
+    
     char **result = bsearch(mnemonic, mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0]), sizeof(char *), cmpstr);
     
     if(result == NULL)
@@ -82,22 +90,70 @@ uint8_t mnemonic_to_opcode(char *mnemonic, instruction *instruction)
         exit(EXIT_FAILURE);
     }
 
+    // get the index of the mnemonic
     switch((int)(result - mnemonics))
-    {
+    {   
+        // Arithmetic Instructions
         case ADD_mn:
             if(instruction->op_1.op_type == REGISTER && instruction->op_2.op_type == REGISTER)
             {
-                instruction->opcode = ADDr;
-            }else if (instruction->op_1.op_type == REGISTER && (instruction->op_2.op_type != REGISTER || instruction->op_2.op_type != UNUSED || instruction->op_2.op_type != LABLE))
+                instruction->opcode = ADDr || instruction->op_1.value || instruction->op_2.value;
+            }else if (instruction->op_1.op_type == REGISTER && (instruction->op_2.op_type != REGISTER || instruction->op_2.op_type != UNUSED))
             {
                 instruction->opcode = ADD;
-            }else 
+            }else
             {
                 printf("Invalid operand types for ADD instruction.\n");
                 exit(EXIT_FAILURE);
-            } 
-
+            }
             break;
+
+        case AND_mn:
+            if(instruction->op_1.op_type == REGISTER && instruction->op_2.op_type == REGISTER)
+            {
+                instruction->opcode = ANDr;
+            }else if (instruction->op_1.op_type == REGISTER && (instruction->op_2.op_type != REGISTER || instruction->op_2.op_type != UNUSED))
+            {
+                instruction->opcode = AND;
+            }else
+            {
+                printf("Invalid operand types for AND instruction.\n");
+                exit(EXIT_FAILURE);
+            }
+            break;
+
+        case OR_mn:
+            if(instruction->op_1.op_type == REGISTER && instruction->op_2.op_type == REGISTER)
+            {
+                instruction->opcode = ORr;
+            }else if (instruction->op_1.op_type == REGISTER && (instruction->op_2.op_type != REGISTER || instruction->op_2.op_type != UNUSED))
+            {
+                instruction->opcode = OR;
+            }else 
+            {
+                printf("Invalid operand types for OR instruction.\n");
+                exit(EXIT_FAILURE);
+            }
+            break;
+
+        case XOR_mn:
+            if(instruction->op_1.op_type == REGISTER && instruction->op_2.op_type == REGISTER)
+            {
+                instruction->opcode = XORr;
+            }else if (instruction->op_1.op_type == REGISTER && (instruction->op_2.op_type != REGISTER || instruction->op_2.op_type != UNUSED))
+            {
+                instruction->opcode = XOR;
+            }else
+            {
+                printf("Invalid operand types for XOR instruction.\n");
+                exit(EXIT_FAILURE);
+            }
+            break;
+        // branching instructions
+        case BCC_mn:
+            instruction->opcode = JMP;
+            break;
+        
     }
     return 0;
 }
