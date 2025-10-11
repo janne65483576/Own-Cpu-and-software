@@ -29,7 +29,7 @@ int check_if_double(char *arr[], int size)
 
 int main()
 {
-    char *mnemonics[] = {"NOP", "ADD", "AND", "XOR", "SHR", "OR", "JMP", "BCC", "BCS", "BZC", "BZS", "BVS", "BVC", "MOV", "ST", "LD", "CALL", "RET", "POP", "PUSH", "XORr", "ORr", "ANDr", "ADDr", "SH", "MOVe", "INC", "DEC", "CLF", "NOT"};
+    char *mnemonics[] = {"NOP", "ADD", "AND", "XOR", "OR", "JMP", "BCC", "BCS", "BZC", "BZS", "BVS", "BVC", "MOV", "ST", "LD", "CALL", "RET", "POP", "PUSH", "XORr", "ORr", "ANDr", "ADDr", "MOVe", "INC", "DEC", "CLF", "NOT", "JMPn", "SHL", "SHR", "ROL", "ROR"};
     
     if (check_if_double(mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0])) == 1)
     {

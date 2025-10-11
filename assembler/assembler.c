@@ -1,4 +1,3 @@
-#include <cstdlib>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -20,29 +19,53 @@ typedef enum
 } opcodes;
 
 // sorted alphabeticly
-char *mnemonics[] = {"ADD", "ADDr", "AND", "ANDr", "BCC", "BCS", "BVC", "BVS", "BZC", "BZS", "CALL", "CLF", "DEC", "INC", "JMP", "LD", "MOV", "MOVe", "NOP", "NOT", "OR", "ORr", "POP", "PUSH", "RET", "SH", "ST", "XOR", "XORr"};
+char *mnemonics[] = {"ADD", "ADDr", "AND", "ANDr", "BCC", "BCS", "BVC", "BVS", "BZC", "BZS", "CALL", "CLF", "DEC", "INC", "JMP", "JMPn", "LD", "MOV", "MOVe", "NOP", "NOT", "OR", "ORr", "POP", "PUSH", "RET", "ROL", "ROR", "SHL", "SHR", "ST", "XOR", "XORr"};
 
 typedef enum
 {
-    ADD_mn, ADDr_mn, AND_mn, ANDr_mn, BCC_mn, BCS_mn, BVC_mn, BVS_mn, BZC_mn, BZS_mn, CALL_mn, CLF_mn, DEC_mn, INC_mn, JMP_mn, LD_mn, MOV_mn, MOVe_mn, NOP_mn, NOT_mn, OR_mn, ORr_mn, POP_mn, PUSH_mn, RET_mn, SH_mn, ST_mn, XOR_mn, XORr_mn
+    ADD_mn, ADDr_mn, AND_mn, ANDr_mn, BCC_mn, BCS_mn, BVC_mn, BVS_mn, BZC_mn, BZS_mn, CALL_mn, CLF_mn, DEC_mn, INC_mn, JMP_mn, JMPn_mn, LD_mn, MOV_mn, MOVe_mn, NOP_mn, NOT_mn, OR_mn, ORr_mn, POP_mn, PUSH_mn, RET_mn, ROL_mn, ROR_mn, SHL_mn, SHR_mn, ST_mn, XOR_mn, XORr_mn
 }mnemonic_enum;
 
 typedef enum
 {
-    REGISTER, MAR, ADDR_16, IMM_8, ADDR_8, LABLE, UNUSED
+    REGISTER, MAR, ADDR_16, IMM_8, ADDR_8, LABLE, UNUSED, FLAG
 } operand_type;
 
 typedef struct{
-    uint8_t register_;
+    // register or condition code for conditionl branch instructions
+    uint8_t register_or_cond;
     uint8_t adress;
 }translation;
 
 const translation translation_table_arr[] =
 {
-    [0] = {ADD, ADDr}, // ADD_mn
-    [2] = {AND, ANDr}, // AND_mn
-    [27] = {XOR, XORr}, // XOR_mn
-    [20] = {OR, ORr}, // OR_mn
+    [ADD_mn] = {ADDr, ADD},
+    [AND_mn] = {ANDr, AND},
+    [XOR_mn] = {XORr, XOR},
+    [OR_mn] = {ORr, OR},
+
+    [ADDr_mn] = {ADDr, 0},
+    [ANDr_mn] = {ANDr, 0},
+    [XORr_mn] = {XORr, 0},
+    [ORr_mn] = {ORr, 0},
+
+    [BCS_mn] = {1, 0},
+    [BZS_mn] = {2, 0},
+    [BVS_mn] = {3, 0},
+    [BCC_mn] = {1, 0},
+    [BZC_mn] = {2, 0},
+    [BVC_mn] = {3, 0},
+
+    [SHL_mn] = {SH | 0b00 << 6, 0}, // rotate = 0, direction = 0
+    [SHR_mn] = {SH | 0b01 << 6, 0}, // rotate = 0, direction = 1
+    [ROL_mn] = {SH | 0b10 << 6, 0}, // rotate = 1, direction = 0
+    [ROR_mn] = {SH | 0b11 << 6, 0}, // rotate = 1, direction = 1
+
+    [POP_mn]  = {LD | 3 << 6, 0},
+    [PUSH_mn] = {ST | 3 << 6, 0},
+
+    [JMP_mn]  = {JMP, 0},
+    [JMPn_mn] = {JMPn, 0},
 };
 
 typedef struct{
@@ -93,18 +116,139 @@ void print_instruction(const instruction *instr) {
     puts("------------------");
 }
 
+void shift_to_opcode(int mn_index, instruction *instruction)
+{
+    if (instruction->op_1.op_type == REGISTER && instruction->op_2.op_type == UNUSED)
+    {
+        instruction->opcode = translation_table_arr[mn_index].register_or_cond | instruction->op_1.value << 4;
+        return;
+    }
+
+    printf("Invalid operand types for shift instruction.\n");
+    exit(EXIT_FAILURE);
+}
+
+void jump_to_opcode(int mn_index, instruction *instruction)
+{ 
+    if (instruction->op_2.op_type == UNUSED || instruction->op_2.op_type == FLAG)
+    {
+        instruction->opcode = translation_table_arr[mn_index].register_or_cond;
+        
+        if (instruction->op_2.op_type == FLAG)
+        {
+            instruction->opcode |= instruction->op_2.value << 4;
+        }
+
+        if (instruction->op_1.op_type == ADDR_8)
+        {
+            instruction->opcode |= 1 << 6;
+            return;
+        }
+        
+        if (instruction->op_1.op_type == ADDR_16)
+        {
+            return;
+        }
+    }
+
+    printf("Invalid operand types for JMP instruction.\n");
+    exit(EXIT_FAILURE);
+}
+
+void branch_to_opcode(int mn_index, instruction *instruction)
+{
+    int conditinal_code = translation_table_arr[mn_index].register_or_cond;
+    
+    if (instruction->op_2.op_type == UNUSED)
+    {
+        if (instruction->op_1.op_type == ADDR_8)
+        {
+            instruction->opcode |= JMP | 1 << 6 | conditinal_code << 4;
+            return;
+        }
+        
+        if (instruction->op_1.op_type == ADDR_16)
+        {
+            instruction->opcode = JMP | conditinal_code << 4;
+            return;
+        }
+    }
+
+    printf("Invalid operand types for conditinal JMP instruction.\n");
+    exit(EXIT_FAILURE);
+}
+
+void branch_not_to_opcode(int mn_index, instruction *instruction)
+{
+    int conditinal_code = translation_table_arr[mn_index].register_or_cond;
+
+    if (instruction->op_2.op_type == UNUSED)
+    {
+        if (instruction->op_1.op_type == ADDR_8)
+        {
+            instruction->opcode |= JMPn | 1 << 6 | conditinal_code << 4;
+            return;
+        }
+        
+        if (instruction->op_1.op_type == ADDR_16)
+        {
+            instruction->opcode = JMPn | conditinal_code << 4;
+            return;
+        }
+    }
+
+    printf("Invalid operand types for conditinal JMP instruction.\n");
+    exit(EXIT_FAILURE);
+}
+
+void ooi_to_opcode(int mn_index, instruction *instruction)
+{
+    if (instruction->op_2.op_type == UNUSED)
+    {
+        if (instruction->op_1.op_type == REGISTER)
+        {
+            instruction->opcode = instruction->op_1.value << 4;
+
+            // set the mode
+            switch (mn_index) 
+            {
+                case INC_mn:
+                    instruction->opcode |= 1 << 6;
+                break;
+                case DEC_mn:
+                    instruction->opcode |= 2 << 6;
+                break;
+                case NOT_mn:
+                    instruction->opcode |= 3 << 6;
+            }
+            return;
+        } else if (instruction->op_1.op_type == FLAG)
+        {
+            instruction->opcode = instruction->op_1.value << 4;
+            return;
+        }
+    }
+
+    printf("Invalid operand types for an OOI instruction.\n");
+    exit(EXIT_FAILURE);
+}
+
 void arithmetic_to_opcode(int mn_index, instruction *instruction)
 {
-    if(instruction->op_1.op_type == REGISTER && instruction->op_2.op_type == REGISTER)
+    if (instruction->op_1.op_type == REGISTER && instruction->op_2.op_type == REGISTER)
     {
         // construct corect maschine code
-        instruction->opcode = translation_table_arr[mn_index].register_ | instruction->op_1.value << 4 | instruction->op_2.value << 6;
-    }else if (instruction->op_1.op_type == REGISTER && instruction->op_2.op_type != REGISTER && instruction->op_2.op_type != UNUSED)
+        instruction->opcode = translation_table_arr[mn_index].register_or_cond | instruction->op_1.value << 4 | instruction->op_2.value << 6;
+        return;
+    }
+    
+    // TODO replace the unequal
+    if (instruction->op_1.op_type == REGISTER && instruction->op_2.op_type != REGISTER && instruction->op_2.op_type != UNUSED)
     {
         instruction->opcode = translation_table_arr[mn_index].adress | instruction->op_1.value << 4;
         
         switch (instruction->op_2.op_type) {
-            // no ADDR_16 it is the base case with 0x00
+            // no ADDR_16 because it is the base case with 0x00
             case MAR:
                 instruction->opcode |= 1 << 6;
             break;
@@ -118,22 +262,69 @@ void arithmetic_to_opcode(int mn_index, instruction *instruction)
                 // this is only here to prevent compiler warnings
             break;
         }
-    }else
-    {
-        printf("Invalid operand types for an instruction.\n");
-        exit(EXIT_FAILURE);
+        return;
     }
+
+    printf("Invalid operand types for an arithmetic instruction.\n");
+    exit(EXIT_FAILURE);
+}
+
+void arithmetic_register_to_opcode(int mn_index, instruction *instruction)
+{
+    if (instruction->op_1.op_type == REGISTER && instruction->op_2.op_type == REGISTER)
+    {
+        // construct corect maschine code
+        instruction->opcode = translation_table_arr[mn_index].register_or_cond | instruction->op_1.value << 4 | instruction->op_2.value << 6;
+        return;
+    }
+
+    printf("Invalid operand types for an arithmetic register instruction.\n");
+    exit(EXIT_FAILURE);
+}
+
+void stack_to_opcode(int mn_index, instruction *instruction)
+{
+    if (instruction->op_1.op_type == REGISTER && instruction->op_2.op_type == UNUSED)
+    {   
+        instruction->opcode = translation_table_arr[mn_index].register_or_cond;
+        instruction->opcode |= instruction->op_1.value << 4;
+        return;
+    }
+
+    printf("Invalid operand types for an arithmetic register instruction.\n");
+    exit(EXIT_FAILURE);
+}
+
+void memory_to_opcode(int mn_index, instruction *instruction)
+{
+    if (instruction->op_1.op_type == REGISTER)
+    {
+        instruction->opcode = mn_index == LD_mn ? LD : ST;
+        instruction->opcode |= instruction->op_1.value << 4;
+
+        if (instruction->op_1.op_type == ADDR_8)
+        {
+            instruction->opcode |= 2 << 6;
+        }
+
+        if (instruction->op_1.op_type == MAR)
+        {
+            instruction->opcode |= 1 << 6;
+        }
+        return;
+    }
+
+    printf("Invalid operand types for an arithmetic register instruction.\n");
+    exit(EXIT_FAILURE);
 }
 
 int cmpstr(const void *a, const void *b) {
-    const char *key = (const char *)a;
-    const char *elem = *(const char **)b;
-    return strcmp(key, elem);
+    return strcmp((const char *)a, *(const char **)b);
 }
 
 uint8_t mnemonic_to_opcode(char *mnemonic, instruction *instruction)
-{
-    if (instruction->op_1.op_type == LABLE || instruction->op_2.op_type == LABLE)
+{    
+    if (instruction->op_1.op_type == LABLE && instruction->op_2.op_type == LABLE)
     {
         printf("A Instruction with double lable does not exist.\n");
         return 1;
@@ -149,13 +340,63 @@ uint8_t mnemonic_to_opcode(char *mnemonic, instruction *instruction)
 
     // get the index of the mnemonic
     switch((int)(result - mnemonics))
-    {   
+    {
+        case NOP_mn:
+            if (instruction->op_1.op_type != UNUSED || instruction->op_2.op_type != UNUSED) {
+                printf("A NOP instruction is does not have operands\n");
+                exit(EXIT_FAILURE);
+            }
+            // emit a ORr r0, r0
+            instruction->opcode = ORr;
+
         case ADD_mn:
         case AND_mn:
         case XOR_mn:
         case OR_mn:
             arithmetic_to_opcode(result - mnemonics, instruction);
-            break;
+        break;
+
+        case JMP_mn:
+        case JMPn_mn:
+            jump_to_opcode(result - mnemonics, instruction);
+        break;
+
+        case BCS_mn:
+        case BZS_mn:
+        case BVS_mn:
+            branch_to_opcode(result - mnemonics, instruction);
+        break;
+
+        case BCC_mn:
+        case BZC_mn:
+        case BVC_mn:
+            branch_not_to_opcode(result - mnemonics, instruction);
+        break;
+        
+        case INC_mn:
+        case DEC_mn:
+        case CLF_mn:
+        case NOT_mn:
+            ooi_to_opcode(result - mnemonics, instruction);
+        break;
+
+        case ADDr_mn:
+        case ANDr_mn:
+        case ORr_mn:
+        case XORr_mn:
+            arithmetic_register_to_opcode(result - mnemonics, instruction);
+        break;
+        
+        case SHL_mn:
+        case SHR_mn:
+        case ROL_mn:
+        case ROR_mn:
+            shift_to_opcode(result - mnemonics, instruction);
+        break;
+
+        case POP_mn:
+        case PUSH_mn:
+            stack_to_opcode(result - mnemonics, instruction);
     }
     return 0;
 }
@@ -165,6 +406,27 @@ void parse_operand(operand *operand_struct, char *operand_text)
     if(strcasecmp(operand_text, "MAR") == 0)
     {
         operand_struct->op_type = MAR;
+        return;
+    }
+
+    if(strcasecmp(operand_text, "c") == 0)
+    {
+        operand_struct->op_type = FLAG;
+        operand_struct->value = 1;
+        return;
+    }
+
+    if(strcasecmp(operand_text, "z") == 0)
+    {
+        operand_struct->op_type = FLAG;
+        operand_struct->value = 2;
+        return;
+    }
+
+    if(strcasecmp(operand_text, "v") == 0)
+    {
+        operand_struct->op_type = FLAG;
+        operand_struct->value = 3;
         return;
     }
 
