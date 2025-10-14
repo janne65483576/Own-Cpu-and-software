@@ -6,8 +6,13 @@
 
 typedef enum
 {
-    NOP, ADDr, SUBr, ADD, SUB, JMP, MOVr, MOVe, ST, LD // MOVe(xtended)
-}instruction_names;
+    ADDr, ANDr, ORr, XORr, ADD, AND, XOR, OR, OOI, SH, LD, ST, JMP, JMPn, MOV, MOVe
+}opcodes;
+
+typedef enum
+{
+    ZERO = 0b1, CARRY = 0b10, OVERFLOW = 0b100, MAR_STATE = 0b1000
+}flags_mask;
 
 // typedef struct{
 //     uint8_t gpr[4];
@@ -66,7 +71,6 @@ uint16_t adress_mode_to_value_JMP(uint8_t opcode)
     switch(opcode & 0x3) // select the tow bits containig the adress mode
     {
         case(0):
-            printf("adress: %d\n", (uint16_t)memory[pc + 2] << 8 | memory[pc + 1]);
             return (uint16_t)memory[pc + 2] << 8 | memory[pc + 1];
             break;
         case(1):
@@ -110,42 +114,77 @@ uint16_t adress_mode_to_value_MEM(uint8_t opcode)
 }
 
 void execute_instruction(uint8_t opcode)
-{
+{   
+    // check if normal alu instruction
+    if(opcode >> 3 & 1)
+    {
+        // check if register or memory instruction
+        uint8_t src = ((opcode >> 2) & 1) 
+            ? adress_mode_to_value_arithmetic(opcode)
+            : gpr[opcode & 0b11];
+
+        uint16_t sum = (uint16_t)gpr[opcode >> 2 & 0b11] + (uint16_t)src + ((flags & CARRY) ? 1 : 0);
+
+        gpr[opcode >> 2 & 0b11] = (uint8_t)sum;
+
+        // Zero Flag
+        if (gpr[opcode >> 2 & 0b11] == 0)
+            flags |= ZERO;
+        else
+            flags &= ~ZERO;
+
+        // Carry Flag (unsigned overflow)
+        if (sum > 0xFF)
+            flags |= CARRY;
+        else
+            flags &= ~CARRY;
+
+        // Overflow Flag (signed overflow)
+        if (((~( ^ src)) & (A ^ gpr[opcode >> 2 & 0b11]) & 0x80) != 0)
+        {
+            flags |= OVERFLOW;
+        }else
+        {
+            flags &= ~OVERFLOW;
+        } 
+    }
+    
     switch(opcode >> 4)
     {
-        case(NOP):
-            break;
+        case(ADD)
         case(ADDr):
-            gpr[opcode >> 2 & 0b11] = gpr[opcode >> 2 & 0b11] + gpr[opcode & 0b11];
-            // set flags
-            if(gpr[opcode >> 2 & 0b11] == 0)
             {
-                flags |= 1;
+                gpr[opcode >> 2 & 0b11] = gpr[opcode >> 2 & 0b11] + gpr[opcode & 0b11];
+                // set flags
+                if(gpr[opcode >> 2 & 0b11] == 0)
+                {
+                    flags |= ZERO;
+                }
+                if()
+                {
+                    flags |= CARRY;
+                }
+                if()
+                {
+                    flags |= OVERFLOW;
+                }
+                break;
             }
-            if(gpr[opcode >> 2 & 0b11] == 0)
-            {
-                flags |= 1;
-            }
+        case(ANDr):
+            break;
 
+        case(ORr):
             break;
-        case(SUBr):
-            gpr[opcode >> 2 & 0b11] = gpr[opcode >> 2 & 0b11] - gpr[opcode & 0b11];
+
+        case(XORr):
             break;
+        
         case(ADD):
             gpr[opcode >> 2 & 0b11] = gpr[opcode >> 2 & 0b11] + adress_mode_to_value_arithmetic(opcode);
             break;
-        case(SUB):
-            gpr[opcode >> 2 & 0b11] = gpr[opcode >> 2 & 0b11] - adress_mode_to_value_arithmetic(opcode);
-            break;
+
         case(JMP):
-            // conditional is not supported yet
-            pc = adress_mode_to_value_JMP(opcode) - 1;
-            break;
-        // not supported yet
-        case(MOVr):
-            break;
-        case(MOVe):
-            break;
+
     }
     pc++;
 }
