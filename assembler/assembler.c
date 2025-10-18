@@ -397,6 +397,7 @@ uint8_t mnemonic_to_opcode(char *mnemonic, instruction *instruction)
         case POP_mn:
         case PUSH_mn:
             stack_to_opcode(result - mnemonics, instruction);
+        
     }
     return 0;
 }
@@ -543,27 +544,47 @@ void parse_instruction(instruction *instruction, char *instruction_text)
     mnemonic_to_opcode(operands[0], instruction);
 }
 
-uint8_t *linker(instruction *instructions, int inst_count){
+uint8_t *linker(instruction *instructions, int inst_count, long *bin_size_final){
     int bin_i = 0;
 
-    // used MAX_INSTRUCTIONS is not very good some instructions hav 2 or 3 bytes
+    // used MAX_INSTRUCTIONS is not very good some instructions have 2 or 3 bytes
     uint8_t *bin = (uint8_t *)malloc(MAX_INSTRUCTIONS);
-    int bin_size = MAX_INSTRUCTIONS;
+    int max_bin_size = MAX_INSTRUCTIONS;
+    int bin_size = 0;
 
     for (int inst_i = 0; inst_i < inst_count; inst_i++)
     {
         // dynamicly manage the array
-        if (inst_i + 2 >= bin_size)
+        if (inst_i + 2 >= max_bin_size)
         {
-            bin_size += MAX_INSTRUCTIONS;
-            bin = realloc(bin, bin_size);
+            max_bin_size += MAX_INSTRUCTIONS;
+            bin = realloc(bin, max_bin_size);
         }
         
         // write the opcode
         bin[bin_i++] = instructions[inst_i].opcode;
+
+        if(instructions[inst_i].op_2.op_type == ADDR_8 || instructions[inst_i].op_2.op_type == IMM_8)
+        {
+            bin_size += 2;
+            bin[bin_i++] = instructions[inst_i].op_2.value;
+            continue;
+        }
+
+        if(instructions[inst_i].op_2.op_type == ADDR_16)
+        {
+            bin_size += 3;
+            printf("%d\n", instructions[inst_i].op_2.value);
+            bin[bin_i++] = instructions[inst_i].op_2.value;
+            bin[bin_i++] = instructions[inst_i].op_2.value >> 8;
+            continue;
+        }
+
+        bin_size++;
     }
-    
-    return NULL;
+
+    *bin_size_final = bin_size;
+    return bin;
 }
 
 uint8_t *get_bin(FILE *assembly_file, long *bin_size)
@@ -620,9 +641,7 @@ uint8_t *get_bin(FILE *assembly_file, long *bin_size)
             line = NULL;
     }
 
-    print_bits(instructions[0].opcode);
-
-    return linker(instructions, instruction_i);
+    return linker(instructions, instruction_i, bin_size);
 }
 
 int check_if_asm_file(const char *filename)
@@ -651,6 +670,11 @@ int main(int argc, char **argv)
     long bin_size;
     uint8_t *bin = get_bin(assembly, &bin_size);
     
+    FILE *bin_file = fopen("prog.bin", "wb");
+    fwrite(bin, sizeof(uint8_t), bin_size, bin_file);
+
+
+    free(bin);
     fclose(assembly);
 
     return 0;
