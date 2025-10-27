@@ -10,7 +10,7 @@ int check_if_double(char *arr[], int size)
 {
     for (int i = 0; i < size; i++)
     {
-        for (int j = 0; j < size; j++)
+        for (int j = 1; j < size; j++)
         {
             if (i == j)
             {
@@ -29,7 +29,77 @@ int check_if_double(char *arr[], int size)
 
 int main()
 {
-    char *mnemonics[] = {"NOP", "ADD", "AND", "XOR", "OR", "JMP", "BCC", "BCS", "BZC", "BZS", "BVS", "BVC", "MOV", "ST", "LD", "CALL", "RET", "POP", "PUSH", "XORr", "ORr", "ANDr", "ADDr", "MOVe", "INC", "DEC", "CLF", "NOT", "JMPn", "SHL", "SHR", "ROL", "ROR"};
+    char *mnemonics[] = {
+        // arithmetic instructions
+        "ADD",
+        "AND",
+        "XOR",
+        "OR",
+
+        // arithmetic register instructions
+        "ADDr",
+        "ANDr",
+        "XORr",
+        "ORr",
+
+        // arithmetic memory instructions
+        "ADDm",
+        "ANDm",
+        "XORm",
+        "ORm",
+
+        // bit shift
+        "SHL",
+        "SHR",
+        "ROR",
+        "ROL",
+
+        "NOP",
+        "JMP",
+
+        // conditional branches
+        "BCC",
+        "BCS",
+        "BZC",
+        "BZS",
+        "BVS",
+        "BVC",
+
+        // data transfer
+        "MOV",
+        "MOVr",
+        "MOVe",
+
+        // memory instructions
+        "ST",
+        "LD",
+
+        // stack instructions
+        "CALL",
+        "CALLn",
+        "RET",
+        "RETn",
+        "POP",
+        "PUSH",
+
+        // flag instructions
+        "CLF", // clear flag -> e.g. CLF z
+        "SEF",
+        
+        "SCF",
+        "SZF",
+        "SVF",
+        "CCF",
+        "CZF",
+        "CVF",
+        
+        // one operant instructions
+        "NOT",
+        "INC",
+        "DEC",
+        "NEG",
+
+        };
     
     if (check_if_double(mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0])) == 1)
     {
@@ -51,11 +121,6 @@ int main()
             printf("\"%s\"};\n", mnemonics[i]);
         }
     }
-
-    typedef enum
-    {
-        ADD, SUB
-    }mnemonic_enum;
 
     printf("enum:\n");
     printf("typedef enum\n{\n\t");
