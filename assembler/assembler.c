@@ -56,97 +56,17 @@ typedef struct{
     uint8_t adress;
 }translation;
 
-typedef void (*get_opcode_func)(int, instruction *);
+typedef struct instruction_info instruction_info;
 
-typedef struct {
+typedef void (*get_opcode_func)(instruction *, instruction_info *);
+
+struct instruction_info {
     get_opcode_func func;
     union {
         uint8_t opcode; // for mnmnomics which only corresponds to one opcode
         struct {uint8_t reg; uint8_t mem;};
         struct {uint8_t normal; uint8_t extended;}; // for the MOV instruction
     };
-} instruction_info;
-
-void get_opcode_nop(int mn_index, instruction *inst); // ja
-void get_opcode_mem_or_reg(int mn_index, instruction *inst); // ja
-void check_reg_inst(int mn_index, instruction *inst); // ja
-void check_branch_inst(int mn_index, instruction *inst); // ja
-void check_shift_inst(int mn_index, instruction *inst); // ja
-void check_flag_inst(int mn_index, instruction *inst);
-void check_arr_mem_inst(int mn_index, instruction *inst);
-void check_nop_inst(int mn_index, instruction *inst);
-void check_mem_inst(int mn_index, instruction *inst);
-void check_OOI_inst(int mn_index, instruction *inst);
-void check_stack_inst(int mn_index, instruction *inst);
-void check_RET_inst(int mn_index, instruction *inst);
-void check_CALL_inst(int mn_index, instruction *inst);
-void check_MOVr_inst(int mn_index, instruction *inst);
-void check_MOVe_inst(int mn_index, instruction *inst);
-void check_MOV_inst(int mn_index, instruction *inst);
-
-// indexed through the mn_index
-const instruction_info instruction_translation[] = 
-{
-    [ADD_mn] = {get_opcode_mem_or_reg, .reg = ADDr, .mem = ADDm},
-    [AND_mn] = {get_opcode_mem_or_reg, .reg = ANDr, .mem = ANDm},
-    [XOR_mn] = {get_opcode_mem_or_reg, .reg = XORr, .mem = XORm},
-    [OR_mn]  = {get_opcode_mem_or_reg, .reg = ORr,  .mem = ORm},
-
-    [ADDr_mn] = {check_reg_inst, .reg = ADDr},
-    [ANDr_mn] = {check_reg_inst, .reg = ANDr},
-    [XORr_mn] = {check_reg_inst, .reg = XORr},
-    [ORr_mn]  = {check_reg_inst, .reg = ORr},
-
-    [ADDm_mn] = {check_arr_mem_inst, .reg = ADDm},
-    [ANDm_mn] = {check_arr_mem_inst, .reg = ANDm},
-    [XORm_mn] = {check_arr_mem_inst, .reg = XORm},
-    [ORm_mn]  = {check_arr_mem_inst, .reg = ORm},
-
-    [JMP_mn] = {check_branch_inst, .opcode = JMP}, // this instruction is unconditionaly
-    [BCS_mn] = {check_branch_inst, .opcode = JMP  | CARRY    << 4 }, // shift in the condition code
-    [BZS_mn] = {check_branch_inst, .opcode = JMP  | ZERO     << 4 },
-    [BVS_mn] = {check_branch_inst, .opcode = JMP  | OVERFLOW << 4 },
-    [BCC_mn] = {check_branch_inst, .opcode = JMPn | CARRY    << 4 },
-    [BZC_mn] = {check_branch_inst, .opcode = JMPn | ZERO     << 4 },
-    [BVC_mn] = {check_branch_inst, .opcode = JMPn | OVERFLOW << 4 },
-
-    [CLF_mn] = {check_flag_inst, .opcode = EF | 0 << 6}, // set_or_clear = 0
-    [SEF_mn] = {check_flag_inst, .opcode = EF | 1 << 6}, // set_or_clear = 1
-
-    [CCF_mn] = {check_flag_inst, .opcode = EF | CARRY    << 4 | 0 << 6}, // set_or_clear = 0
-    [CZF_mn] = {check_flag_inst, .opcode = EF | ZERO     << 4 | 0 << 6},
-    [CVF_mn] = {check_flag_inst, .opcode = EF | OVERFLOW << 4 | 0 << 6},
-    [SCF_mn] = {check_flag_inst, .opcode = EF | CARRY    << 4 | 1 << 6}, // set_or_clear = 1
-    [SZF_mn] = {check_flag_inst, .opcode = EF | ZERO     << 4 | 1 << 6},
-    [SVF_mn] = {check_flag_inst, .opcode = EF | OVERFLOW << 4 | 1 << 6},
-
-    [SHL_mn] = {check_shift_inst, .opcode = SH | 0b00 << 6}, // rotate = 0, direction = 0
-    [SHR_mn] = {check_shift_inst, .opcode = SH | 0b01 << 6}, // rotate = 0, direction = 1
-    [ROL_mn] = {check_shift_inst, .opcode = SH | 0b10 << 6}, // rotate = 1, direction = 0
-    [ROR_mn] = {check_shift_inst, .opcode = SH | 0b11 << 6}, // rotate = 1, direction = 1
-
-    // emit a or r0, r0
-    [NOP_mn] = {check_nop_inst, .opcode = ORr},
-
-    [ST_mn] = {check_mem_inst, .opcode = ST},
-    [LD_mn] = {check_mem_inst, .opcode = LD},
-
-    [CALL_mn]  = {check_CALL_inst, .opcode = JMP  | 0b11 << 6},
-    [RET_mn]   = {check_RET_inst,  .opcode = JMP  | 0b10 << 6},
-    [CALLn_mn] = {check_CALL_inst, .opcode = JMPn | 0b11 << 6},
-    [RETn_mn]  = {check_RET_inst,  .opcode = JMPn | 0b10 << 6},
-
-    [POP_mn] = {check_stack_inst, .opcode = LD | 0b11 << 6},
-    [PUSH_mn] = {check_stack_inst, .opcode = ST | 0b11 << 6},
-
-    [NOT_mn] = {check_OOI_inst, .opcode = OOI | 0b00 << 6},
-    [INC_mn] = {check_OOI_inst, .opcode = OOI | 0b01 << 6},
-    [DEC_mn] = {check_OOI_inst, .opcode = OOI | 0b10 << 6},
-    [NEG_mn] = {check_OOI_inst, .opcode = OOI | 0b11 << 6},
-
-    [MOV_mn] = {check_MOV_inst, .normal = MOVr, .extended = MOVe},
-    [MOVr_mn] = {check_MOVr_inst, .opcode = MOVr},
-    [MOVe_mn] = {check_MOVr_inst, .opcode = MOVe},
 };
 
 void print_bits(uint8_t value) 
@@ -183,33 +103,111 @@ void print_instruction(const instruction *instr) {
     puts("------------------");
 }
 
-void check_opcode_nop(int mn_index, instruction *inst)
+// arithmetic instructions
+void get_opcode_mem_or_reg(instruction *inst, instruction_info *info);
+void check_reg_inst(instruction *inst, instruction_info *info);
+void check_arr_mem_inst(instruction *inst, instruction_info *info);
+void check_shift_inst(instruction *inst, instruction_info *info);
+void check_OOI_inst(instruction *inst, instruction_info *info); // INC, DEC etc.
+
+// control flow instructions
+void check_branch_inst(instruction *inst, instruction_info *info);
+void check_RET_inst(instruction *inst, instruction_info *info);
+void check_CALL_inst(instruction *inst, instruction_info *info);
+
+// flag instructions
+void check_flag_inst(instruction *inst, instruction_info *info);
+
+// memory instructions
+void check_mem_inst(instruction *inst, instruction_info *info);
+void check_stack_inst(instruction *inst, instruction_info *info);
+
+// data transfer
+void check_MOVr_inst(instruction *inst, instruction_info *info);
+void check_MOVe_inst(instruction *inst, instruction_info *info);
+void get_MOV_inst(instruction *inst, instruction_info *info);
+
+void check_NOP_inst(instruction *inst, instruction_info *info);
+
+
+// indexed through the mn_index
+instruction_info instruction_translation[] = 
 {
-    printf("NOP\n");
-    // if (inst->op_1.op_type != UNUSED || inst->op_2.op_type != UNUSED) 
-    // {
-    //     printf("A NOP instruction is does not have operands\n");
-    //     exit(EXIT_FAILURE);
-    // }
+    [ADD_mn] = {get_opcode_mem_or_reg, .reg = ADDr, .mem = ADDm},
+    [AND_mn] = {get_opcode_mem_or_reg, .reg = ANDr, .mem = ANDm},
+    [XOR_mn] = {get_opcode_mem_or_reg, .reg = XORr, .mem = XORm},
+    [OR_mn]  = {get_opcode_mem_or_reg, .reg = ORr,  .mem = ORm},
 
-    // // emit a ORr r0, r0
-    // inst->opcode = instruction_translation[mn_index].opcode;
-}
+    [ADDr_mn] = {check_reg_inst, .reg = ADDr},
+    [ANDr_mn] = {check_reg_inst, .reg = ANDr},
+    [XORr_mn] = {check_reg_inst, .reg = XORr},
+    [ORr_mn]  = {check_reg_inst, .reg = ORr},
 
-void get_opcode_mem_or_reg(int mn_index, instruction *inst)
+    [ADDm_mn] = {check_arr_mem_inst, .reg = ADDm},
+    [ANDm_mn] = {check_arr_mem_inst, .reg = ANDm},
+    [XORm_mn] = {check_arr_mem_inst, .reg = XORm},
+    [ORm_mn]  = {check_arr_mem_inst, .reg = ORm},
+
+    [SHL_mn] = {check_shift_inst, .opcode = SH | 0b00 << 6}, // rotate = 0, direction = 0
+    [SHR_mn] = {check_shift_inst, .opcode = SH | 0b01 << 6}, // rotate = 0, direction = 1
+    [ROL_mn] = {check_shift_inst, .opcode = SH | 0b10 << 6}, // rotate = 1, direction = 0
+    [ROR_mn] = {check_shift_inst, .opcode = SH | 0b11 << 6}, // rotate = 1, direction = 1
+
+    [NOT_mn] = {check_OOI_inst, .opcode = OOI | 0b00 << 6},
+    [INC_mn] = {check_OOI_inst, .opcode = OOI | 0b01 << 6},
+    [DEC_mn] = {check_OOI_inst, .opcode = OOI | 0b10 << 6},
+    [NEG_mn] = {check_OOI_inst, .opcode = OOI | 0b11 << 6},
+
+    [JMP_mn] = {check_branch_inst, .opcode = JMP}, // this instruction is unconditionaly
+    [BCS_mn] = {check_branch_inst, .opcode = JMP  | CARRY    << 4 }, // shift in the condition code
+    [BZS_mn] = {check_branch_inst, .opcode = JMP  | ZERO     << 4 },
+    [BVS_mn] = {check_branch_inst, .opcode = JMP  | OVERFLOW << 4 },
+    [BCC_mn] = {check_branch_inst, .opcode = JMPn | CARRY    << 4 },
+    [BZC_mn] = {check_branch_inst, .opcode = JMPn | ZERO     << 4 },
+    [BVC_mn] = {check_branch_inst, .opcode = JMPn | OVERFLOW << 4 },
+
+    [CALL_mn]  = {check_CALL_inst, .opcode = JMP  | 0b11 << 6},
+    [CALLn_mn] = {check_CALL_inst, .opcode = JMPn | 0b11 << 6},
+    [RET_mn]   = {check_RET_inst,  .opcode = JMP  | 0b10 << 6},
+    [RETn_mn]  = {check_RET_inst,  .opcode = JMPn | 0b10 << 6},
+
+    [CLF_mn] = {check_flag_inst, .opcode = EF | 0 << 6}, // set_or_clear = 0
+    [SEF_mn] = {check_flag_inst, .opcode = EF | 1 << 6}, // set_or_clear = 1
+
+    [CCF_mn] = {check_flag_inst, .opcode = EF | CARRY    << 4 | 0 << 6}, // set_or_clear = 0
+    [CZF_mn] = {check_flag_inst, .opcode = EF | ZERO     << 4 | 0 << 6},
+    [CVF_mn] = {check_flag_inst, .opcode = EF | OVERFLOW << 4 | 0 << 6},
+    [SCF_mn] = {check_flag_inst, .opcode = EF | CARRY    << 4 | 1 << 6}, // set_or_clear = 1
+    [SZF_mn] = {check_flag_inst, .opcode = EF | ZERO     << 4 | 1 << 6},
+    [SVF_mn] = {check_flag_inst, .opcode = EF | OVERFLOW << 4 | 1 << 6},
+
+    [ST_mn]   = {check_mem_inst,   .opcode = ST},
+    [LD_mn]   = {check_mem_inst,   .opcode = LD},
+    [POP_mn]  = {check_stack_inst, .opcode = LD | 0b11 << 6},
+    [PUSH_mn] = {check_stack_inst, .opcode = ST | 0b11 << 6},
+
+    [MOV_mn]  = {get_MOV_inst, .normal = MOVr, .extended = MOVe},
+    [MOVr_mn] = {check_MOVr_inst, .opcode = MOVr},
+    [MOVe_mn] = {check_MOVr_inst, .opcode = MOVe},
+
+    // emit a or r0, r0
+    [NOP_mn] = {check_NOP_inst, .opcode = ORr},
+};
+
+void get_opcode_mem_or_reg(instruction *inst, instruction_info *info)
 {
     if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == REGISTER)
     {
         // register-register instruction
-        inst->opcode = instruction_translation[mn_index].reg | inst->op_1.value << 4 | inst->op_2.value << 6;
+        inst->opcode = info->reg | inst->op_1.value << 4 | inst->op_2.value << 6;
         return;
     }
     
-    // TODO replace the unequal
     if (inst->op_1.op_type == REGISTER && (inst->op_2.op_type == ADDR_8 || inst->op_2.op_type == ADDR_16 || inst->op_2.op_type == MAR || inst->op_2.op_type == IMM_8))
     {
-        inst->opcode = instruction_translation[mn_index].mem | inst->op_1.value << 4;
+        inst->opcode = info->mem | inst->op_1.value << 4;
         
+        // or in the adress mode
         switch (inst->op_2.op_type) {
             // no ADDR_16 because it is the base case with 0x00
             case MAR:
@@ -232,12 +230,11 @@ void get_opcode_mem_or_reg(int mn_index, instruction *inst)
     exit(EXIT_FAILURE);
 }
 
-void check_reg_inst(int mn_index, instruction *inst)
+void check_reg_inst(instruction *inst, instruction_info *info)
 {
     if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == REGISTER)
     {
-        // construct corect maschine code
-        inst->opcode = instruction_translation[mn_index].opcode | inst->op_1.value << 4 | inst->op_2.value << 6;
+        inst->opcode = info->opcode | inst->op_1.value << 4 | inst->op_2.value << 6;
         return;
     }
 
@@ -245,16 +242,40 @@ void check_reg_inst(int mn_index, instruction *inst)
     exit(EXIT_FAILURE);
 }
 
-void check_branch_inst(int mn_index, instruction *inst)
+void check_arr_mem_inst(instruction *inst, instruction_info *info)
 {
-    return;
+    if (inst->op_1.op_type == REGISTER && (inst->op_2.op_type == ADDR_8 || inst->op_2.op_type == ADDR_16 || inst->op_2.op_type == MAR || inst->op_2.op_type == IMM_8))
+    {
+        inst->opcode = info->mem | inst->op_1.value << 4;
+        
+        // or in the adress mode
+        switch (inst->op_2.op_type) {
+            // no ADDR_16 because it is the base case with 0x00
+            case MAR:
+                inst->opcode |= 1 << 6;
+            break;
+            case IMM_8:
+                inst->opcode |= 1 << 7;
+            break;
+            case ADDR_8:
+                inst->opcode |= 0b11 << 6;
+            break;
+            default:
+                // the "default" is only here to prevent compiler warnings
+            break;
+        }
+        return;
+    }
+
+    printf("Invalid operand types for an arithmetic memory instruction.\n");
+    exit(EXIT_FAILURE);
 }
 
-void check_shift_inst(int mn_index, instruction *inst)
+void check_shift_inst(instruction *inst, instruction_info *info)
 {
     if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == UNUSED)
     {
-        inst->opcode = instruction_translation[mn_index].opcode | inst->op_1.value << 4;
+        inst->opcode = info->opcode | inst->op_1.value << 4;
         return;
     }
 
@@ -262,51 +283,81 @@ void check_shift_inst(int mn_index, instruction *inst)
     exit(EXIT_FAILURE);
 }
 
-void check_flag_inst(int mn_index, instruction *inst)
+void check_OOI_inst(instruction *inst, instruction_info *info){
+    
+    if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == UNUSED)
+    {
+        inst->opcode = info->opcode | inst->op_1.value << 4;
+        return;
+    }
+
+    printf("Invalid operand types for singel operand instruction. (INC, DEC, NEG, NOT)\n");
+    exit(EXIT_FAILURE); 
+    return;
+}
+
+void check_branch_inst(instruction *inst, instruction_info *info)
+{
+    if ((inst->op_1.op_type == ADDR_16 || inst->op_1.op_type == ADDR_8) && (inst->op_2.op_type == UNUSED || inst->op_2.op_type == FLAG))
+    {
+        inst->opcode = info->opcode;
+
+        if (inst->op_2.op_type == FLAG)
+        {
+            inst->opcode = 
+        }
+        return;
+    } 
+
+    return;
+}
+
+void check_flag_inst(instruction *inst, instruction_info *info)
 {
     return;
 }
 
-void check_arr_mem_inst(int mn_index, instruction *inst){
+void check_mem_inst(instruction *inst, instruction_info *info){
     return;
 }
 
-void check_nop_inst(int mn_index, instruction *inst){
+void check_stack_inst(instruction *inst, instruction_info *info){
     return;
 }
 
-void check_mem_inst(int mn_index, instruction *inst){
+void check_RET_inst(instruction *inst, instruction_info *info){
     return;
 }
 
-void check_OOI_inst(int mn_index, instruction *inst){
+void check_CALL_inst(instruction *inst, instruction_info *info){
     return;
 }
 
-void check_stack_inst(int mn_index, instruction *inst){
+void check_MOVr_inst(instruction *inst, instruction_info *info){
     return;
 }
 
-void check_RET_inst(int mn_index, instruction *inst){
+void check_MOVe_inst(instruction *inst, instruction_info *info){
     return;
 }
 
-void check_CALL_inst(int mn_index, instruction *inst){
+void get_MOV_inst(instruction *inst, instruction_info *info){
     return;
 }
 
-void check_MOVr_inst(int mn_index, instruction *inst){
-    return;
-}
+void check_NOP_inst(instruction *inst, instruction_info *info)
+{
+    if (inst->op_1.op_type != UNUSED || inst->op_2.op_type != UNUSED) 
+    {
+        printf("A NOP instruction is does not have operands\n");
+        exit(EXIT_FAILURE);
+    }
 
-void check_MOVe_inst(int mn_index, instruction *inst){
-    return;
-}
+    // emit a ORr r0, r0
+    inst->opcode = info->opcode;
 
-void check_MOV_inst(int mn_index, instruction *inst){
-    return;
+    printf("NOP\n");
 }
-
 
 int cmpstr(const void *a, const void *b) {
     return strcmp((const char *)a, *(const char **)b);
@@ -329,10 +380,8 @@ uint8_t mnemonic_to_opcode(char *mnemonic, instruction *instruction)
     }
     
     int mn_index = (int)(result - mnemonics);
-    printf("mn_index: %d\n");
-    printf("%s\n" );
 
-    instruction_translation[mn_index].func(mn_index, instruction);
+    instruction_translation[mn_index].func(instruction, &instruction_translation[mn_index]);
     
     return 0;
 }
@@ -601,20 +650,17 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    // FILE *assembly = fopen(argv[1], "rb");
+    FILE *assembly = fopen(argv[1], "rb");
 
-    // long bin_size;
-    // uint8_t *bin = get_bin(assembly, &bin_size);
+    long bin_size;
+    uint8_t *bin = get_bin(assembly, &bin_size);
     
-    // FILE *bin_file = fopen("prog.bin", "wb");
-    // fwrite(bin, sizeof(uint8_t), bin_size, bin_file);
+    FILE *bin_file = fopen("prog.bin", "wb");
+    fwrite(bin, sizeof(uint8_t), bin_size, bin_file);
 
 
-    // free(bin);
-    // fclose(assembly);
-
-    instruction test_inst;
-    mnemonic_to_opcode("NOP", &test_inst);
+    free(bin);
+    fclose(assembly);
 
     return 0;
 }
