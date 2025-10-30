@@ -283,7 +283,8 @@ void check_shift_inst(instruction *inst, instruction_info *info)
     exit(EXIT_FAILURE);
 }
 
-void check_OOI_inst(instruction *inst, instruction_info *info){
+void check_OOI_inst(instruction *inst, instruction_info *info)
+{
     
     if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == UNUSED)
     {
@@ -298,42 +299,168 @@ void check_OOI_inst(instruction *inst, instruction_info *info){
 
 void check_branch_inst(instruction *inst, instruction_info *info)
 {
+    // TODO: a BZS can be executed with an extra flag argument "BZS c" but it will not have an impact
+    if ((inst->op_1.op_type == ADDR_16 || inst->op_1.op_type == ADDR_8) && (inst->op_2.op_type == UNUSED || inst->op_2.op_type == FLAG))
+    {
+        inst->opcode = info->opcode;
+
+        if (inst->op_1.op_type == ADDR_8)
+        {
+            // use relative adressing
+            inst->opcode |= 0b01 << 6;
+        }
+        return;
+    } 
+    
+    printf("Invalid operand types a branch instruction.\n");
+    exit(EXIT_FAILURE); 
+    return;
+}
+
+void check_CALL_inst(instruction *inst, instruction_info *info)
+{
+
     if ((inst->op_1.op_type == ADDR_16 || inst->op_1.op_type == ADDR_8) && (inst->op_2.op_type == UNUSED || inst->op_2.op_type == FLAG))
     {
         inst->opcode = info->opcode;
 
         if (inst->op_2.op_type == FLAG)
         {
-            inst->opcode = 
+            // or in the condition code
+            switch(inst->op_2.value){
+                case(CARRY):
+                    inst->opcode |= CARRY << 4;
+                    break;
+
+                case(ZERO):
+                    inst->opcode |= ZERO << 4;
+                    break;
+
+                case(OVERFLOW):
+                    inst->opcode |= OVERFLOW << 4;
+                    break;
+            }
         }
         return;
-    } 
+    }
 
+    printf("Invalid operand types a CALL instruction.\n");
+    exit(EXIT_FAILURE); 
+    return;
+}
+
+void check_RET_inst(instruction *inst, instruction_info *info)
+{
+    
+    if ((inst->op_1.op_type == UNUSED || inst->op_1.op_type == FLAG) && inst->op_2.op_type == UNUSED)
+    {
+        inst->opcode = info->opcode;
+
+        if (inst->op_1.op_type == FLAG)
+        {
+            // or in the condition code
+            switch(inst->op_1.value){
+                case(CARRY):
+                    inst->opcode |= CARRY << 4;
+                    break;
+
+                case(ZERO):
+                    inst->opcode |= ZERO << 4;
+                    break;
+
+                case(OVERFLOW):
+                    inst->opcode |= OVERFLOW << 4;
+                    break;
+            }
+        }
+        return;
+    }
+
+    printf("Invalid operand types a RET instruction.\n");
+    exit(EXIT_FAILURE); 
     return;
 }
 
 void check_flag_inst(instruction *inst, instruction_info *info)
 {
+    if ((inst->op_1.op_type == UNUSED || inst->op_1.op_type == FLAG) && inst->op_2.op_type == UNUSED) 
+    {
+        inst->opcode = info->opcode;
+
+        if(inst->op_1.op_type == FLAG){
+            switch(inst->op_2.value) 
+            {
+                case(CARRY):
+                    inst->opcode |= CARRY << 4;
+                    break;
+
+                case(ZERO):
+                    inst->opcode |= ZERO << 4;
+                    break;
+
+                case(OVERFLOW):
+                    inst->opcode |= OVERFLOW << 4;
+                    break;
+            }
+        }
+        return;
+    }
+    
+    printf("Invalid operand types a edit flag instruction (SCF, CZF ...).\n");
+    exit(EXIT_FAILURE); 
     return;
 }
 
-void check_mem_inst(instruction *inst, instruction_info *info){
+void check_mem_inst(instruction *inst, instruction_info *info)
+{
+    if (inst->op_1.op_type == REGISTER && (inst->op_2.op_type == ADDR_8 || inst->op_2.op_type == ADDR_16 || inst->op_2.op_type == MAR))
+    {
+        inst->opcode = info->opcode | inst->op_1.value << 4;
+
+        // or in the adress mode
+        switch (inst->op_2.op_type) {
+            // no ADDR_16 because it is the base case with 0x00
+            case MAR:
+                inst->opcode |= 0b01 << 6;
+            break;
+
+            case ADDR_8:
+                inst->opcode |= 0b10 << 6;
+            break;
+
+            default:
+            // This default is only here to prevent compiler warnings
+            break;
+        }
+        return;
+    }
+
+    printf("Invalid operand types a memory instruction.\n");
+    exit(EXIT_FAILURE); 
     return;
 }
 
-void check_stack_inst(instruction *inst, instruction_info *info){
+void check_stack_inst(instruction *inst, instruction_info *info)
+{
+    if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == UNUSED)
+    {
+        inst->opcode = info->opcode;
+    }
+
+    printf("Invalid operand types a stack instruction.\n");
+    exit(EXIT_FAILURE); 
     return;
 }
 
-void check_RET_inst(instruction *inst, instruction_info *info){
-    return;
-}
+void check_MOVr_inst(instruction *inst, instruction_info *info)
+{
+    if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == REGISTER)
+    {
+        inst->opcode = info->opcode | inst->op_1.value << 4 | inst->op_2.value;
+    }
 
-void check_CALL_inst(instruction *inst, instruction_info *info){
-    return;
-}
-
-void check_MOVr_inst(instruction *inst, instruction_info *info){
+    printf("Invalid operand types MOVr instruction.\n");
+    exit(EXIT_FAILURE);
     return;
 }
 
