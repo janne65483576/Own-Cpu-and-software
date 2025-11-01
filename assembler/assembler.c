@@ -45,6 +45,18 @@ typedef struct{
     uint16_t adress;
 } instruction;
 
+typedef union
+{
+    struct{int offset; char *lable};
+    // NEVER edit the len or capacity if this is not the header
+    struct {int lable_count; int capacity}header;
+}lable;
+
+#define LABLE_LIST_INIT_SIZE 20
+#define LABLE_LIST_INC 5 // When lable_list is full increment with LABLE_LIST_INC
+
+lable *lable_list;
+
 typedef enum
 {
     CARRY = 1, ZERO, OVERFLOW
@@ -131,7 +143,7 @@ void check_NOP_inst(instruction *inst, instruction_info *info);
 
 
 // indexed through the mn_index
-instruction_info instruction_translation[] = 
+const instruction_info instruction_translation[] = 
 {
     [ADD_mn] = {get_opcode_mem_or_reg, .reg = ADDr, .mem = ADDm},
     [AND_mn] = {get_opcode_mem_or_reg, .reg = ANDr, .mem = ANDm},
@@ -229,7 +241,6 @@ void get_opcode_mem_or_reg(instruction *inst, instruction_info *info)
     printf("Invalid operand types for an arithmetic instruction.\n");
     exit(EXIT_FAILURE);
 }
-
 void check_reg_inst(instruction *inst, instruction_info *info)
 {
     if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == REGISTER)
@@ -241,7 +252,6 @@ void check_reg_inst(instruction *inst, instruction_info *info)
     printf("Invalid operand types for an arithmetic register instruction.\n");
     exit(EXIT_FAILURE);
 }
-
 void check_arr_mem_inst(instruction *inst, instruction_info *info)
 {
     if (inst->op_1.op_type == REGISTER && (inst->op_2.op_type == ADDR_8 || inst->op_2.op_type == ADDR_16 || inst->op_2.op_type == MAR || inst->op_2.op_type == IMM_8))
@@ -270,7 +280,6 @@ void check_arr_mem_inst(instruction *inst, instruction_info *info)
     printf("Invalid operand types for an arithmetic memory instruction.\n");
     exit(EXIT_FAILURE);
 }
-
 void check_shift_inst(instruction *inst, instruction_info *info)
 {
     if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == UNUSED)
@@ -282,7 +291,6 @@ void check_shift_inst(instruction *inst, instruction_info *info)
     printf("Invalid operand types for shift instruction.\n");
     exit(EXIT_FAILURE);
 }
-
 void check_OOI_inst(instruction *inst, instruction_info *info)
 {
     
@@ -296,7 +304,6 @@ void check_OOI_inst(instruction *inst, instruction_info *info)
     exit(EXIT_FAILURE); 
     return;
 }
-
 void check_branch_inst(instruction *inst, instruction_info *info)
 {
     // TODO: a BZS can be executed with an extra flag argument "BZS c" but it will not have an impact
@@ -316,7 +323,6 @@ void check_branch_inst(instruction *inst, instruction_info *info)
     exit(EXIT_FAILURE); 
     return;
 }
-
 void check_CALL_inst(instruction *inst, instruction_info *info)
 {
 
@@ -348,7 +354,6 @@ void check_CALL_inst(instruction *inst, instruction_info *info)
     exit(EXIT_FAILURE); 
     return;
 }
-
 void check_RET_inst(instruction *inst, instruction_info *info)
 {
     
@@ -380,7 +385,6 @@ void check_RET_inst(instruction *inst, instruction_info *info)
     exit(EXIT_FAILURE); 
     return;
 }
-
 void check_flag_inst(instruction *inst, instruction_info *info)
 {
     if ((inst->op_1.op_type == UNUSED || inst->op_1.op_type == FLAG) && inst->op_2.op_type == UNUSED) 
@@ -410,7 +414,6 @@ void check_flag_inst(instruction *inst, instruction_info *info)
     exit(EXIT_FAILURE); 
     return;
 }
-
 void check_mem_inst(instruction *inst, instruction_info *info)
 {
     if (inst->op_1.op_type == REGISTER && (inst->op_2.op_type == ADDR_8 || inst->op_2.op_type == ADDR_16 || inst->op_2.op_type == MAR))
@@ -439,7 +442,6 @@ void check_mem_inst(instruction *inst, instruction_info *info)
     exit(EXIT_FAILURE); 
     return;
 }
-
 void check_stack_inst(instruction *inst, instruction_info *info)
 {
     if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == UNUSED)
@@ -451,7 +453,6 @@ void check_stack_inst(instruction *inst, instruction_info *info)
     exit(EXIT_FAILURE); 
     return;
 }
-
 void check_MOVr_inst(instruction *inst, instruction_info *info)
 {
     if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == REGISTER)
@@ -463,15 +464,14 @@ void check_MOVr_inst(instruction *inst, instruction_info *info)
     exit(EXIT_FAILURE);
     return;
 }
-
-void check_MOVe_inst(instruction *inst, instruction_info *info){
+void check_MOVe_inst(instruction *inst, instruction_info *info)
+{
     return;
 }
-
-void get_MOV_inst(instruction *inst, instruction_info *info){
+void get_MOV_inst(instruction *inst, instruction_info *info)
+{
     return;
 }
-
 void check_NOP_inst(instruction *inst, instruction_info *info)
 {
     if (inst->op_1.op_type != UNUSED || inst->op_2.op_type != UNUSED) 
@@ -483,27 +483,79 @@ void check_NOP_inst(instruction *inst, instruction_info *info)
     // emit a ORr r0, r0
     inst->opcode = info->opcode;
 
-    printf("NOP\n");
 }
 
-int cmpstr(const void *a, const void *b) {
+void init_lable_list()
+{
+    lable_list = malloc(sizeof(lable) * (LABLE_LIST_INIT_SIZE + 1)); // plus 1 for the header
+    
+    // store the header
+    lable_list[0].header.capacity = LABLE_LIST_INIT_SIZE;
+    lable_list[0].header.lable_count = 1;
+    return;
+}
+
+void add_lable(char *lable, instruction *instructions)
+{
+    // check if the lable is already in the list
+    for (int i = 1; i < lable_list[0].header.lable_count; i++)
+    {
+        if (strcmp(lable, lable_list[i].lable) == 0)
+        {
+            printf("The lable \"%d\" is already defind.\n", lable);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    if (lable_list[0].header.lable_count + 1 )
+
+    return;
+}
+
+void get_lable_val(operand *op)
+{
+    return;
+}
+
+int cmpstr(const void *a, const void *b) 
+{
     return strcmp((const char *)a, *(const char **)b);
 }
-
-uint8_t mnemonic_to_opcode(char *mnemonic, instruction *instruction)
+int parse_mnemonic(char *mnemonic, instruction *instruction)
 {    
     if (instruction->op_1.op_type == LABLE && instruction->op_2.op_type == LABLE)
     {
         printf("A Instruction with double lable does not exist.\n");
-        return 1;
+        exit(EXIT_FAILURE);
+        return;
     }
     
     char **result = bsearch(mnemonic, mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0]), sizeof(char *), cmpstr);
     
-    if(result == NULL)
+    if (result == NULL)
     {
-        printf("lable: %s (terminate -> not implemented yet)\n", mnemonic);
+        if (instruction->op_1.op_type == UNUSED && instruction->op_2.op_type == UNUSED)
+        {
+            // check for the colon
+            if (mnemonic[strlen(mnemonic) - 1] == ':')
+            {
+                return 1;
+            }
+        }
+        printf("Undefined mnemonic: \"%s\".\n", mnemonic);
         exit(EXIT_FAILURE);
+    }
+
+    // replace the labels with values
+
+    if (instruction->op_1.op_type == LABLE)
+    {
+        get_lable_val(&instruction->op_1);
+    }
+
+    if (instruction->op_2.op_type == LABLE)
+    {
+        get_lable_val(&instruction->op_2);
     }
     
     int mn_index = (int)(result - mnemonics);
@@ -623,12 +675,13 @@ void parse_operand(operand *operand_struct, char *operand_text)
     operand_struct->value = val & 0xffff;
 }
 
-void parse_instruction(instruction *instruction, char *instruction_text)
+char **get_operands(char *instruction_text)
 {
-    char *operands[MAX_OPERAND];
-    int operand_count = 0;
+    char **operands = (char **)malloc(MAX_OPERAND * sizeof(char *));
 
     operands[0] = strtok(instruction_text, " ,");
+    operands[1] = NULL;
+    operands[2] = NULL;
 
     for (int i = 1; i < MAX_OPERAND; i++)
     {
@@ -637,22 +690,9 @@ void parse_instruction(instruction *instruction, char *instruction_text)
         {
             break;
         }
-        operand_count++;
     }
 
-    instruction->op_1.op_type = UNUSED;
-    instruction->op_2.op_type = UNUSED;
-
-    if (operand_count >= 1) 
-    {
-        parse_operand(&instruction->op_1, operands[1]);
-        if (operand_count >= 2)
-        {
-            parse_operand(&instruction->op_2, operands[2]);
-        }
-    }
-
-    mnemonic_to_opcode(operands[0], instruction);
+    return operands;
 }
 
 uint8_t *linker(instruction *instructions, int inst_count, long *bin_size_final){
@@ -707,8 +747,11 @@ uint8_t *get_bin(FILE *assembly_file, long *bin_size)
     char *line = NULL;
     int nread = 0;
 
+    init_lable_arr();
+
     while ((nread = getline(&line, &len, assembly_file)) != -1)
     {
+        // replace the end of line with a null terminator
         if (nread > 0 && line[nread - 1] == '\n') {
             line[nread - 1] = '\0';
         }
@@ -723,7 +766,7 @@ uint8_t *get_bin(FILE *assembly_file, long *bin_size)
         {
             if(line[i] == '.')
             {
-                //directive
+                // directive
                 break;
             }
             
@@ -742,9 +785,24 @@ uint8_t *get_bin(FILE *assembly_file, long *bin_size)
         }
 
         printf("line: %s\n", line);
-
+    
+        char **operands = get_operands(line);
         instruction curr_instruction;
-        parse_instruction(&curr_instruction, line);
+        
+        if (operands[1] != NULL)
+        {
+            parse_operand(&curr_instruction.op_1, operands[1]);
+
+            if (operands[2] != NULL)
+            {
+                parse_operand(&curr_instruction.op_2, operands[2]);
+            }
+        }
+
+        if (parse_mnemonic(operands[0], &curr_instruction) == 1)
+        {
+            add_lable(operands[0], instructions);
+        }
 
         instructions[instruction_i++] = curr_instruction;
 
@@ -784,7 +842,6 @@ int main(int argc, char **argv)
     
     FILE *bin_file = fopen("prog.bin", "wb");
     fwrite(bin, sizeof(uint8_t), bin_size, bin_file);
-
 
     free(bin);
     fclose(assembly);
