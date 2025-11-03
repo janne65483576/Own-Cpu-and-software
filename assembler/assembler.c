@@ -47,9 +47,11 @@ typedef struct{
 
 typedef union
 {
-    struct{int offset; char *lable};
+    struct{int offset; char *lable;};
     // NEVER edit the len or capacity if this is not the header
-    struct {int lable_count; int capacity}header;
+    // head points to to next free place in the list
+    // capacity shows how much space is allocated for the array excluding the header at
+    struct {int head; int capacity;}header;
 }lable;
 
 #define LABLE_LIST_INIT_SIZE 20
@@ -485,29 +487,42 @@ void check_NOP_inst(instruction *inst, instruction_info *info)
 
 }
 
-void init_lable_list()
+void init_lable_arr()
 {
     lable_list = malloc(sizeof(lable) * (LABLE_LIST_INIT_SIZE + 1)); // plus 1 for the header
     
     // store the header
     lable_list[0].header.capacity = LABLE_LIST_INIT_SIZE;
-    lable_list[0].header.lable_count = 1;
+    lable_list[0].header.head = 1;
     return;
 }
 
-void add_lable(char *lable, instruction *instructions)
+void print_lable(lable l)
+{
+    printf("Text: %s\n", l.lable);
+    //printf("Offset from last lable: %d\n", l.offset);
+}
+
+void add_lable(char *lable_text, instruction *instructions)
 {
     // check if the lable is already in the list
-    for (int i = 1; i < lable_list[0].header.lable_count; i++)
+    for (int i = 1; i < lable_list[0].header.head; i++)
     {
-        if (strcmp(lable, lable_list[i].lable) == 0)
+        if (strcmp(lable_text, lable_list[i].lable) == 0)
         {
-            printf("The lable \"%d\" is already defind.\n", lable);
+            printf("The lable \"%s\" is already defind.\n", lable_text);
             exit(EXIT_FAILURE);
         }
     }
+    
+    lable lable_struct;
 
-    if (lable_list[0].header.lable_count + 1 )
+    lable_struct.lable = lable_text;
+    lable_struct.offset = 0;
+
+    lable_list[lable_list[0].header.head++] = lable_struct;
+
+    print_lable(lable_list[lable_list[0].header.head - 1]);
 
     return;
 }
@@ -527,7 +542,7 @@ int parse_mnemonic(char *mnemonic, instruction *instruction)
     {
         printf("A Instruction with double lable does not exist.\n");
         exit(EXIT_FAILURE);
-        return;
+        return 2;
     }
     
     char **result = bsearch(mnemonic, mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0]), sizeof(char *), cmpstr);
@@ -784,11 +799,14 @@ uint8_t *get_bin(FILE *assembly_file, long *bin_size)
             exit(EXIT_FAILURE);
         }
 
-        printf("line: %s\n", line);
+        // printf("line: %s\n", line);
     
         char **operands = get_operands(line);
         instruction curr_instruction;
-        
+
+        curr_instruction.op_1.op_type = UNUSED;
+        curr_instruction.op_2.op_type = UNUSED;
+ 
         if (operands[1] != NULL)
         {
             parse_operand(&curr_instruction.op_1, operands[1]);
