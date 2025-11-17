@@ -24,7 +24,7 @@ char *mnemonics[] = {"ADD", "ADDm", "ADDr", "AND", "ANDm", "ANDr", "BCC", "BCS",
 typedef enum
 {
 	ADD_mn, ADDm_mn, ADDr_mn, AND_mn, ANDm_mn, ANDr_mn, BCC_mn, BCS_mn, BVC_mn, BVS_mn, BZC_mn, BZS_mn, CALL_mn, CALLn_mn, CCF_mn, CLF_mn, CVF_mn, CZF_mn, DEC_mn, INC_mn, JMP_mn, LD_mn, MOV_mn, MOVe_mn, MOVr_mn, NEG_mn, NOP_mn, NOT_mn, OR_mn, ORm_mn, ORr_mn, POP_mn, PUSH_mn, RET_mn, RETn_mn, ROL_mn, ROR_mn, SCF_mn, SEF_mn, SHL_mn, SHR_mn, ST_mn, SVF_mn, SZF_mn, XOR_mn, XORm_mn, XORr_mn
-}mnemonic_enum;
+} mnemonic_enum;
 
 typedef enum
 {
@@ -41,23 +41,29 @@ typedef struct{
     opcodes opcode;
     operand op_1;
     operand op_2;
-
-    uint16_t adress;
 } instruction;
-
-typedef union
-{
-    struct{int offset; char *lable;};
-    // NEVER edit the len or capacity if this is not the header
-    // head points to to next free place in the list
-    // capacity shows how much space is allocated for the array excluding the header at
-    struct {int head; int capacity;}header;
-}lable;
 
 #define LABLE_LIST_INIT_SIZE 20
 #define LABLE_LIST_INC 5 // When lable_list is full increment with LABLE_LIST_INC
 
-lable *lable_list;
+typedef struct
+{
+    int address;
+    // after which instruction the lable is defined
+    int instruction_index;
+    char *lable;
+} lable;
+
+struct lable_list
+{
+    lable *list;
+    // count of the lables which are already in the list
+    int count;
+    // how many lables can fit in the allocated space
+    int capacity;
+};
+
+struct lable_list lable_list;
 
 typedef enum
 {
@@ -487,13 +493,11 @@ void check_NOP_inst(instruction *inst, instruction_info *info)
 
 }
 
-void init_lable_arr()
+void init_lable_list()
 {
-    lable_list = malloc(sizeof(lable) * (LABLE_LIST_INIT_SIZE + 1)); // plus 1 for the header
-    
-    // store the header
-    lable_list[0].header.capacity = LABLE_LIST_INIT_SIZE;
-    lable_list[0].header.head = 1;
+    lable_list.list = malloc(sizeof(lable) * (LABLE_LIST_INIT_SIZE));
+    lable_list.capacity = LABLE_LIST_INIT_SIZE;
+    lable_list.count = 0;
     return;
 }
 
@@ -503,26 +507,65 @@ void print_lable(lable l)
     //printf("Offset from last lable: %d\n", l.offset);
 }
 
-void add_lable(char *lable_text, instruction *instructions)
+void print_lable_list()
+{
+    for (int i = 0; i < lable_list.count; i++)
+    {
+        printf("%d. lable:\n", i + 1);
+        print_lable(lable_list.list[i]);
+    }
+}
+
+int get_inst_len(instruction *inst)
+{
+    // if the instruction contains a lable resolve it first
+
+    
+    if (inst->op_1.op_type == REGISTER || inst->op_2.op_type == REGISTER)
+    {
+        return 1;
+    }
+
+    if (inst->op_2.op_type == IMM_8 || inst->op_2.op_type == ADDR_8)
+    {
+        return 2;
+    }
+
+    if (inst->op_2.op_type == ADDR_16)
+    {
+        return 3;
+    }
+}
+
+// only insert lables without the colon
+void add_lable(char *lable_text, int instruction_index)
 {
     // check if the lable is already in the list
-    for (int i = 1; i < lable_list[0].header.head; i++)
+    for (int i = 0; i < lable_list.count; i++)
     {
-        if (strcmp(lable_text, lable_list[i].lable) == 0)
+        //printf("lable_text: %s --- lable_list: %s\n", lable_text, lable_list.list[i].lable);
+        if (strcmp(lable_text, lable_list.list[i].lable) == 0)
         {
+            print_lable_list();
             printf("The lable \"%s\" is already defind.\n", lable_text);
             exit(EXIT_FAILURE);
         }
     }
     
-    lable lable_struct;
+    if (lable_list.count >= lable_list.capacity)
+    {
+        lable_list.capacity += LABLE_LIST_INC;
+        lable_list.list = realloc(lable_list.list, sizeof(lable) * lable_list.capacity);
+    }
 
-    lable_struct.lable = lable_text;
-    lable_struct.offset = 0;
+    lable lable_new;
 
-    lable_list[lable_list[0].header.head++] = lable_struct;
+    lable_new.lable = strdup(lable_text);
+    lable_new.instruction_index = instruction_index;
 
-    print_lable(lable_list[lable_list[0].header.head - 1]);
+    lable_list.list[lable_list.count++] = lable_new;
+
+    //print_lable(lable_list.list[lable_list.count - 1]);
 
     return;
 }
@@ -552,8 +595,11 @@ int parse_mnemonic(char *mnemonic, instruction *instruction)
         if (instruction->op_1.op_type == UNUSED && instruction->op_2.op_type == UNUSED)
         {
             // check for the colon
-            if (mnemonic[strlen(mnemonic) - 1] == ':')
+            int len = strlen(mnemonic) - 1;
+            if (mnemonic[len] == ':')
             {
+                // remove the colon
+                mnemonic[len] = '\0';
                 return 1;
             }
         }
@@ -690,10 +736,8 @@ void parse_operand(operand *operand_struct, char *operand_text)
     operand_struct->value = val & 0xffff;
 }
 
-char **get_operands(char *instruction_text)
+char **get_operands(char *instruction_text, char **operands)
 {
-    char **operands = (char **)malloc(MAX_OPERAND * sizeof(char *));
-
     operands[0] = strtok(instruction_text, " ,");
     operands[1] = NULL;
     operands[2] = NULL;
@@ -762,7 +806,8 @@ uint8_t *get_bin(FILE *assembly_file, long *bin_size)
     char *line = NULL;
     int nread = 0;
 
-    init_lable_arr();
+    // the lable list struct ist globaly defined and is used around the whole assembler
+    init_lable_list();
 
     while ((nread = getline(&line, &len, assembly_file)) != -1)
     {
@@ -795,13 +840,13 @@ uint8_t *get_bin(FILE *assembly_file, long *bin_size)
         if (instruction_i >= MAX_INSTRUCTIONS)
         {
             printf("The MAX_INTRUCTIONS limit is to less.");
-            free(line);
             exit(EXIT_FAILURE);
         }
 
-        // printf("line: %s\n", line);
-    
-        char **operands = get_operands(line);
+        //printf("line: %s\n", line);
+        char *operands[MAX_OPERAND];
+        get_operands(line, operands);
+
         instruction curr_instruction;
 
         curr_instruction.op_1.op_type = UNUSED;
@@ -819,7 +864,8 @@ uint8_t *get_bin(FILE *assembly_file, long *bin_size)
 
         if (parse_mnemonic(operands[0], &curr_instruction) == 1)
         {
-            add_lable(operands[0], instructions);
+            add_lable(operands[0], instruction_i);
+            goto skip;
         }
 
         instructions[instruction_i++] = curr_instruction;
@@ -863,6 +909,8 @@ int main(int argc, char **argv)
 
     free(bin);
     fclose(assembly);
+
+    print_lable_list();
 
     return 0;
 }
