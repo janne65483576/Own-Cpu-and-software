@@ -1,9 +1,4 @@
-ADD r0, 10
-ADD r1, 10
-ADD r2, 10
-ADD r3, 10
+XOR r0, r0
 
-ADD r0, 10
-ADD r1, 10
-ADD r2, 10
-ADD r3, 10
+ADD r1, 1
+JMP %-2
