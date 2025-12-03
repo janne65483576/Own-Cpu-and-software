@@ -6,7 +6,7 @@
 #include <strings.h>
 
 #define MAX_MNEMONIC_LEN 10
-#define MAX_OPPERNAD_LEN 20 // + 1 because null termination
+#define MAX_OPPERAND_LEN 20 // + 1 because null termination
 #define MAX_OPERAND 3
 
 #define MAX_INSTRUCTIONS 100
@@ -15,10 +15,10 @@
 // OOI = one operand instruction
 typedef enum
 {
-    OOI, ADDm, ADDr, ANDm, ANDr, XORm, XORr, ORm, ORr, SH, LD, ST, JMP, JMPn, MOVr, MOVe, EF = 0b10001111
+    OOI, ADDm, ADDr, ANDm, ANDr, XORm, XORr, ORm, ORr, SH, LD, ST, JMP, JMPn, MOVr, MOVe, EF = 0b10001111, NOT_KNOWN
 } opcodes;
 
-// sorted alphabeticly -> use the sort.c
+// sorted alphabetical -> use the sort.c
 char *mnemonics[] = {"ADD", "ADDm", "ADDr", "AND", "ANDm", "ANDr", "BCC", "BCS", "BVC", "BVS", "BZC", "BZS", "CALL", "CALLn", "CCF", "CLF", "CVF", "CZF", "DEC", "INC", "JMP", "LD", "MOV", "MOVe", "MOVr", "NEG", "NOP", "NOT", "OR", "ORm", "ORr", "POP", "PUSH", "RET", "RETn", "ROL", "ROR", "SCF", "SEF", "SHL", "SHR", "ST", "SVF", "SZF", "XOR", "XORm", "XORr"};
 
 typedef enum
@@ -28,42 +28,44 @@ typedef enum
 
 typedef enum
 {
-    REGISTER, MAR, ADDR_16, IMM_8, ADDR_8, LABLE, UNUSED, FLAG
+    REGISTER, MAR, ADDR_16, IMM_8, ADDR_8, LABEL, UNUSED, FLAG
 } operand_type;
 
 typedef struct{
     int16_t value;
     operand_type op_type;
-    char *lable; // only used if operand_type == LABLE
+    char *label; // only used if operand_type == LABEL
 } operand;
 
 typedef struct{
-    opcodes opcode;
+    // the first translation step writes the text the second use ist and construct the opcode
+    union {char *mnemonic_text; opcodes opcode; };
     operand op_1;
     operand op_2;
 } instruction;
 
-#define LABLE_LIST_INIT_SIZE 20
-#define LABLE_LIST_INC 5 // When lable_list is full increment with LABLE_LIST_INC
+#define LABEL_LIST_INIT_SIZE 20
+#define LABEL_LIST_INC 5 // When label_list is full increment with LABEL_LIST_INC
 
 typedef struct
 {
     int address;
-    // after which instruction the lable is defined
+    // after which instruction the label is defined
     int instruction_index;
-    char *lable;
-} lable;
+    char *label;
+    bool resolved;
+} label;
 
-struct lable_list
+struct label_list
 {
-    lable *list;
-    // count of the lables which are already in the list
+    label *list;
+    // count of the labels which are already in the list
     int count;
-    // how many lables can fit in the allocated space
+    // how many labels can fit in the allocated space
     int capacity;
 };
 
-struct lable_list lable_list;
+struct label_list label_list;
 
 typedef enum
 {
@@ -71,9 +73,9 @@ typedef enum
 } flags;
 
 typedef struct{
-    // register or condition code for conditionl branch instructions
+    // register or condition code for conditional branch instructions
     uint8_t register_or_cond;
-    uint8_t adress;
+    uint8_t address;
 }translation;
 
 typedef struct instruction_info instruction_info;
@@ -83,7 +85,7 @@ typedef void (*get_opcode_func)(instruction *, instruction_info *);
 struct instruction_info {
     get_opcode_func func;
     union {
-        uint8_t opcode; // for mnmnomics which only corresponds to one opcode
+        uint8_t opcode; // for mnemonic which only corresponds to one opcode
         struct {uint8_t reg; uint8_t mem;};
         struct {uint8_t normal; uint8_t extended;}; // for the MOV instruction
     };
@@ -119,7 +121,7 @@ void print_instruction(const instruction *instr) {
         printf("value: %d\n", instr->op_2.value);
         printf("operand_type: %d\n", instr->op_2.op_type);
     }
-    //printf("adress: %d\n", instr->adress);
+    //printf("address: %d\n", instr->address);
     puts("------------------");
 }
 
@@ -178,7 +180,7 @@ const instruction_info instruction_translation[] =
     [DEC_mn] = {check_OOI_inst, .opcode = OOI | 0b10 << 6},
     [NEG_mn] = {check_OOI_inst, .opcode = OOI | 0b11 << 6},
 
-    [JMP_mn] = {check_branch_inst, .opcode = JMP}, // this instruction is unconditionaly
+    [JMP_mn] = {check_branch_inst, .opcode = JMP}, // this instruction is unconditionally
     [BCS_mn] = {check_branch_inst, .opcode = JMP  | CARRY    << 4 }, // shift in the condition code
     [BZS_mn] = {check_branch_inst, .opcode = JMP  | ZERO     << 4 },
     [BVS_mn] = {check_branch_inst, .opcode = JMP  | OVERFLOW << 4 },
@@ -227,7 +229,7 @@ void get_opcode_mem_or_reg(instruction *inst, instruction_info *info)
     {
         inst->opcode = info->mem | inst->op_1.value << 4;
         
-        // or in the adress mode
+        // or in the address mode
         switch (inst->op_2.op_type) {
             // no ADDR_16 because it is the base case with 0x00
             case MAR:
@@ -266,7 +268,7 @@ void check_arr_mem_inst(instruction *inst, instruction_info *info)
     {
         inst->opcode = info->mem | inst->op_1.value << 4;
         
-        // or in the adress mode
+        // or in the address mode
         switch (inst->op_2.op_type) {
             // no ADDR_16 because it is the base case with 0x00
             case MAR:
@@ -308,7 +310,7 @@ void check_OOI_inst(instruction *inst, instruction_info *info)
         return;
     }
 
-    printf("Invalid operand types for singel operand instruction. (INC, DEC, NEG, NOT)\n");
+    printf("Invalid operand types for single operand instruction. (INC, DEC, NEG, NOT)\n");
     exit(EXIT_FAILURE); 
     return;
 }
@@ -321,7 +323,7 @@ void check_branch_inst(instruction *inst, instruction_info *info)
 
         if (inst->op_1.op_type == ADDR_8)
         {
-            // use relative adressing
+            // use relative addressing
             inst->opcode |= 0b01 << 6;
         }
         return;
@@ -428,7 +430,7 @@ void check_mem_inst(instruction *inst, instruction_info *info)
     {
         inst->opcode = info->opcode | inst->op_1.value << 4;
 
-        // or in the adress mode
+        // or in the address mode
         switch (inst->op_2.op_type) {
             // no ADDR_16 because it is the base case with 0x00
             case MAR:
@@ -493,84 +495,108 @@ void check_NOP_inst(instruction *inst, instruction_info *info)
 
 }
 
-void init_lable_list()
+void init_label_list()
 {
-    lable_list.list = malloc(sizeof(lable) * (LABLE_LIST_INIT_SIZE));
-    lable_list.capacity = LABLE_LIST_INIT_SIZE;
-    lable_list.count = 0;
+    label_list.list = malloc(sizeof(label) * (LABEL_LIST_INIT_SIZE));
+    label_list.capacity = LABEL_LIST_INIT_SIZE;
+    label_list.count = 0;
     return;
 }
 
-void print_lable(lable l)
+void print_label(label l)
 {
-    printf("Text: %s\n", l.lable);
-    //printf("Offset from last lable: %d\n", l.offset);
+    printf("Text: %s\n", l.label);
+    //printf("Offset from last label: %d\n", l.offset);
 }
 
-void print_lable_list()
+void print_label_list()
 {
-    for (int i = 0; i < lable_list.count; i++)
+    for (int i = 0; i < label_list.count; i++)
     {
-        printf("%d. lable:\n", i + 1);
-        print_lable(lable_list.list[i]);
-    }
-}
-
-int get_inst_len(instruction *inst)
-{
-    // if the instruction contains a lable resolve it first
-
-    
-    if (inst->op_1.op_type == REGISTER || inst->op_2.op_type == REGISTER)
-    {
-        return 1;
-    }
-
-    if (inst->op_2.op_type == IMM_8 || inst->op_2.op_type == ADDR_8)
-    {
-        return 2;
-    }
-
-    if (inst->op_2.op_type == ADDR_16)
-    {
-        return 3;
+        printf("%d. label:\n", i + 1);
+        print_label(label_list.list[i]);
     }
 }
 
-// only insert lables without the colon
-void add_lable(char *lable_text, int instruction_index)
+// only insert labels without the colon
+void add_label(char *label_text, int instruction_index)
 {
-    // check if the lable is already in the list
-    for (int i = 0; i < lable_list.count; i++)
+    // check if the label is already in the list
+    for (int i = 0; i < label_list.count; i++)
     {
-        //printf("lable_text: %s --- lable_list: %s\n", lable_text, lable_list.list[i].lable);
-        if (strcmp(lable_text, lable_list.list[i].lable) == 0)
+        //printf("label_text: %s --- label_list: %s\n", label_text, label_list.list[i].label);
+        if (strcmp(label_text, label_list.list[i].label) == 0)
         {
-            print_lable_list();
-            printf("The lable \"%s\" is already defind.\n", lable_text);
+            print_label_list();
+            printf("The label \"%s\" is already defend.\n", label_text);
             exit(EXIT_FAILURE);
         }
     }
     
-    if (lable_list.count >= lable_list.capacity)
+    if (label_list.count >= label_list.capacity)
     {
-        lable_list.capacity += LABLE_LIST_INC;
-        lable_list.list = realloc(lable_list.list, sizeof(lable) * lable_list.capacity);
+        label_list.capacity += LABEL_LIST_INC;
+        label_list.list = realloc(label_list.list, sizeof(label) * label_list.capacity);
     }
 
-    lable lable_new;
+    label label_new;
 
-    lable_new.lable = strdup(lable_text);
-    lable_new.instruction_index = instruction_index;
+    label_new.label = strdup(label_text);
+    label_new.instruction_index = instruction_index;
 
-    lable_list.list[lable_list.count++] = lable_new;
+    label_list.list[label_list.count++] = label_new;
 
-    //print_lable(lable_list.list[lable_list.count - 1]);
+    //print_label(label_list.list[label_list.count - 1]);
 
     return;
 }
 
-void get_lable_val(operand *op)
+int get_inst_len(instruction *inst)
+{
+    if (!inst) return 0;
+
+    if (inst->op_1.op_type == IMM_8 || inst->op_2.op_type == IMM_8 ||
+        inst->op_1.op_type == ADDR_8 || inst->op_2.op_type == ADDR_8) {
+        return 2;
+    }
+
+    if (inst->op_1.op_type == ADDR_16 || inst->op_2.op_type == ADDR_16) {
+        return 3;
+    }
+
+    // default/fallback: return 1 (or 0/error) depending on ISA design
+    return 1;
+}
+
+// uses the instruction index to resolve the labels to addresses
+void resolve_label(label *l, instruction *instructions, int instruction_count)
+{
+    if (!l || !instructions) return;
+
+    if (l->resolved) return;
+    l->resolved = 1;
+
+    int address = 0;
+    // sum lengths of instructions before this label's instruction index
+    for (int i = 0; i < l->instruction_index && i < instruction_count; ++i)
+    {
+        // If this instruction itself contains a label object, resolve that label first.
+        // Adjust access below to match how your instruction stores label metadata.
+        if (instructions[i].op_1.op_type == LABEL) {
+            // assume operand has a pointer or embedded label object; adjust field name as needed
+            resolve_label(&instructions[i].op_1.label, instructions, instruction_count);
+        }
+        if (instructions[i].op_2.op_type == LABEL) {
+            resolve_label(&instructions[i].op_2.label, instructions, instruction_count);
+        }
+
+        address += get_inst_len(&instructions[i]);
+    }
+
+    l->address = address;
+}
+
+void get_label_val(operand *op)
 {
     return;
 }
@@ -579,50 +605,45 @@ int cmpstr(const void *a, const void *b)
 {
     return strcmp((const char *)a, *(const char **)b);
 }
-int parse_mnemonic(char *mnemonic, instruction *instruction)
+void parse_mnemonic(char *mnemonic, instruction *instruction)
 {    
-    if (instruction->op_1.op_type == LABLE && instruction->op_2.op_type == LABLE)
+    if (instruction->op_1.op_type == LABEL && instruction->op_2.op_type == LABEL)
     {
-        printf("A Instruction with double lable does not exist.\n");
+        printf("A Instruction with double label does not exist.\n");
         exit(EXIT_FAILURE);
-        return 2;
     }
     
     char **result = bsearch(mnemonic, mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0]), sizeof(char *), cmpstr);
     
     if (result == NULL)
     {
-        if (instruction->op_1.op_type == UNUSED && instruction->op_2.op_type == UNUSED)
-        {
-            // check for the colon
-            int len = strlen(mnemonic) - 1;
-            if (mnemonic[len] == ':')
-            {
-                // remove the colon
-                mnemonic[len] = '\0';
-                return 1;
-            }
-        }
         printf("Undefined mnemonic: \"%s\".\n", mnemonic);
         exit(EXIT_FAILURE);
     }
 
-    // replace the labels with values
-
-    if (instruction->op_1.op_type == LABLE)
-    {
-        get_lable_val(&instruction->op_1);
+    // replace the label with values
+    if (instruction->op_1.op_type == LABEL) {
+        get_label_val(&instruction->op_1);
     }
-
-    if (instruction->op_2.op_type == LABLE)
-    {
-        get_lable_val(&instruction->op_2);
+    if (instruction->op_2.op_type == LABEL) {
+        get_label_val(&instruction->op_2);
     }
     
     int mn_index = (int)(result - mnemonics);
 
     instruction_translation[mn_index].func(instruction, &instruction_translation[mn_index]);
-    
+    return;
+}
+// check if the text is a label and remove the colon
+int is_label(char *text)
+{
+    int len = strlen(text);
+    if (text[len - 1] == ':')
+    {
+        // remove the colon
+        text[len - 1] = '\0';
+        return 1;
+    }
     return 0;
 }
 
@@ -664,7 +685,7 @@ void parse_operand(operand *operand_struct, char *operand_text)
 
         if (*endptr != '\0')
         {
-            printf("Invlaid operand: %s\n", operand_text);
+            printf("Invalid operand: %s\n", operand_text);
             exit(EXIT_FAILURE);
         }
 
@@ -680,14 +701,14 @@ void parse_operand(operand *operand_struct, char *operand_text)
     }
 
     int base = 10;
-    bool is_adress = false;
+    bool is_address = false;
     int start_off = 0;
     long val;
 
     if (operand_text[0] == '%')
     {
         start_off++;
-        is_adress = true;
+        is_address = true;
     }
     
     if (operand_text[start_off] == '#')
@@ -702,15 +723,12 @@ void parse_operand(operand *operand_struct, char *operand_text)
     {
         if (base == 16)
         {
-            printf("Invlaid operand: %s\n", operand_text);
+            printf("invalid operand: %s\n", operand_text);
             exit(EXIT_FAILURE);
         }
 
-        operand_struct->op_type = LABLE;
-
-        int len = strlen(operand_text);
-        operand_struct->lable = (char *)malloc(len);
-        memcpy(operand_struct->lable, operand_text + 1, len);
+        operand_struct->op_type = LABEL;
+        operand_struct->label = strdup(operand_text);
         return;
     }
 
@@ -722,13 +740,13 @@ void parse_operand(operand *operand_struct, char *operand_text)
 
     if (val > INT8_MIN && val < INT8_MAX)
     {
-        operand_struct->op_type = is_adress ? ADDR_8 : IMM_8;
+        operand_struct->op_type = is_address ? ADDR_8 : IMM_8;
         operand_struct->value = val & 0xff;
         return;
     }
     
-    if ((val < INT8_MIN || val > UINT8_MAX) && !is_adress) {
-        printf("A Imidiate value which isent an andress can not be greater or smaller than 8 bits. Value: %ld\n", val);
+    if ((val < INT8_MIN || val > UINT8_MAX) && !is_address) {
+        printf("A immediate value which isent an andress can not be greater or smaller than 8 bits. Value: %ld\n", val);
         exit(EXIT_FAILURE);
     }
     
@@ -754,7 +772,8 @@ char **get_operands(char *instruction_text, char **operands)
     return operands;
 }
 
-uint8_t *linker(instruction *instructions, int inst_count, long *bin_size_final){
+// converts the instructions structs to binary format by inserting the opcodes and the immediate/addresses
+uint8_t *convert_to_bin(instruction *instructions, int inst_count, long *bin_size_final){
     int bin_i = 0;
 
     // use MAX_INSTRUCTIONS is not very good some instructions have 2 or 3 bytes
@@ -799,16 +818,17 @@ uint8_t *linker(instruction *instructions, int inst_count, long *bin_size_final)
 }
 
 uint8_t *get_bin(FILE *assembly_file, long *bin_size)
-{   
+{
     instruction instructions[MAX_INSTRUCTIONS];
     int instruction_i = 0;
     size_t len = 0;
     char *line = NULL;
     int nread = 0;
 
-    // the lable list struct ist globaly defined and is used around the whole assembler
-    init_lable_list();
+    // the label list struct ist globally defined and is used around the whole assembler
+    init_label_list();
 
+    // read in the labels and instructions but not translate them yet
     while ((nread = getline(&line, &len, assembly_file)) != -1)
     {
         // replace the end of line with a null terminator
@@ -821,7 +841,7 @@ uint8_t *get_bin(FILE *assembly_file, long *bin_size)
             goto skip;
         }
 
-        // check if direktive
+        // check if directive
         for(int i = 0; line[i] != '\0'; i++)
         {
             if(line[i] == '.')
@@ -839,7 +859,7 @@ uint8_t *get_bin(FILE *assembly_file, long *bin_size)
 
         if (instruction_i >= MAX_INSTRUCTIONS)
         {
-            printf("The MAX_INTRUCTIONS limit is to less.");
+            printf("The MAX_instructions limit is to less.");
             exit(EXIT_FAILURE);
         }
 
@@ -851,6 +871,8 @@ uint8_t *get_bin(FILE *assembly_file, long *bin_size)
 
         curr_instruction.op_1.op_type = UNUSED;
         curr_instruction.op_2.op_type = UNUSED;
+        // The instruction mnemonic is saved for later translation 
+        curr_instruction.mnemonic_text = strdup(operands[0]);
  
         if (operands[1] != NULL)
         {
@@ -862,10 +884,17 @@ uint8_t *get_bin(FILE *assembly_file, long *bin_size)
             }
         }
 
-        if (parse_mnemonic(operands[0], &curr_instruction) == 1)
+        if (is_label(operands[0]))
         {
-            add_lable(operands[0], instruction_i);
-            goto skip;
+            if (curr_instruction.op_1.op_type == UNUSED && curr_instruction.op_2.op_type == UNUSED)
+            {
+                add_label(operands[0], instruction_i);
+                goto skip;
+            }
+            else {
+                printf("A label can not have operands.\n");
+                exit(EXIT_FAILURE);
+            }
         }
 
         instructions[instruction_i++] = curr_instruction;
@@ -875,7 +904,18 @@ uint8_t *get_bin(FILE *assembly_file, long *bin_size)
             line = NULL;
     }
 
-    return linker(instructions, instruction_i, bin_size);
+    // iterate over the instructions and translate them to opcodes
+    // instruction_i is the count of instructions
+    for (int i = 0; i < instruction_i; i++)
+    {
+        // save the ptr to free later
+        char *mnemonic_text = instructions[i].mnemonic_text;
+        // the function exist if an error occurs
+        parse_mnemonic(mnemonic_text, &instructions[i]);
+        free(mnemonic_text);
+    }
+
+    return convert_to_bin(instructions, instruction_i, bin_size);
 }
 
 int check_if_asm_file(const char *filename)
@@ -910,7 +950,7 @@ int main(int argc, char **argv)
     free(bin);
     fclose(assembly);
 
-    print_lable_list();
+    print_label_list();
 
     return 0;
 }
