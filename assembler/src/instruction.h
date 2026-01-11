@@ -39,29 +39,36 @@ typedef enum
 
     // edit flags
     EF = 0b10001111
-} opcodes;
+}opcodes;
 
 typedef enum
 {
     REGISTER, MAR, ADDR_16, IMM_8, ADDR_8, LABEL, UNUSED, FLAG
-} operand_type;
+}operand_data_t;
 
 typedef struct{
     int16_t value;
-    operand_type op_type;
+    operand_data_t op_type;
     char *label; // only used if operand_type == LABEL
-} operand;
+}operand_t;
 
 typedef struct{
-    // the first translation step writes the text the second use ist and construct the opcode
-    union {char *mnemonic_text; opcodes opcode; };
-    operand op_1;
-    operand op_2;
-} instruction;
+    // the first translation step writes the text the second use its and construct the opcode
+    opcodes opcode;
+    operand_t op_1;
+    operand_t op_2;
+}instruction_t;
+
+typedef struct
+{
+    instruction_t *list;
+    int count;
+    int capacity;
+}instruction_list_t;
 
 typedef enum
 {
     CARRY = 1, ZERO, OVERFLOW
-} flags;
+}flags_t;
 
 #endif // INSTRUCTION_H

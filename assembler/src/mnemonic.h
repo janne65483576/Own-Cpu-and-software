@@ -2,6 +2,6 @@
 #define MNEMONIC_H
 #include "instruction.h"
 
-void parse_mnemonic(char *mnemonic, instruction *instruction);
+int parse_mnemonic(char *mnemonic, instruction_t *instruction);
 
 #endif // MNEMONIC

@@ -5,7 +5,7 @@ CFLAGS = -Wall -Wextra -g
 # project structure
 SRC_DIR = src
 BUILD_DIR = build
-TARGET = program
+TARGET = assembler
 
 # Automatic source code search
 SRCS = $(filter-out $(SRC_DIR)/sort.c, $(wildcard $(SRC_DIR)/*.c))

@@ -12,62 +12,65 @@ typedef enum
 	ADD_mn, ADDm_mn, ADDr_mn, AND_mn, ANDm_mn, ANDr_mn, BCC_mn, BCS_mn, BVC_mn, BVS_mn, BZC_mn, BZS_mn, CALL_mn, CALLn_mn, CCF_mn, CLF_mn, CVF_mn, CZF_mn, DEC_mn, INC_mn, JMP_mn, LD_mn, MOV_mn, MOVe_mn, MOVr_mn, NEG_mn, NOP_mn, NOT_mn, OR_mn, ORm_mn, ORr_mn, POP_mn, PUSH_mn, RET_mn, RETn_mn, ROL_mn, ROR_mn, SCF_mn, SEF_mn, SHL_mn, SHR_mn, ST_mn, SVF_mn, SZF_mn, XOR_mn, XORm_mn, XORr_mn
 } mnemonic_enum;
 
-typedef struct instruction_info instruction_info;
+typedef struct instruction_info_t instruction_info_t;
 
-typedef void (*get_opcode_func)(instruction *, instruction_info *);
+typedef void (*get_opcode_func)(instruction_t *, instruction_info_t *);
 
-struct instruction_info {
+struct instruction_info_t {
     get_opcode_func func;
     union {
         uint8_t opcode; // for mnemonic which only corresponds to one opcode
-        struct {uint8_t reg; uint8_t mem;};
-        struct {uint8_t normal; uint8_t extended;}; // for the MOV instruction
+        struct {uint8_t reg; uint8_t mem;}; // register or an instruction which has a memory address
+        struct {uint8_t normal; uint8_t extended;}; // for the MOV instruction only
     };
+    int max_size;
 };
 
 // arithmetic instructions
-void get_opcode_mem_or_reg(instruction *inst, instruction_info *info);
-void check_reg_inst(instruction *inst, instruction_info *info);
-void check_arr_mem_inst(instruction *inst, instruction_info *info);
-void check_shift_inst(instruction *inst, instruction_info *info);
-void check_OOI_inst(instruction *inst, instruction_info *info); // INC, DEC etc.
+void get_opcode_mem_or_reg(instruction_t *inst, instruction_info_t *info);
+void check_reg_inst(instruction_t *inst, instruction_info_t *info);
+void check_arr_mem_inst(instruction_t *inst, instruction_info_t *info);
+void check_shift_inst(instruction_t *inst, instruction_info_t *info);
+void check_OOI_inst(instruction_t *inst, instruction_info_t *info); // INC, DEC etc.
 
 // control flow instructions
-void check_branch_inst(instruction *inst, instruction_info *info);
-void check_RET_inst(instruction *inst, instruction_info *info);
-void check_CALL_inst(instruction *inst, instruction_info *info);
+void check_branch_inst(instruction_t *inst, instruction_info_t *info);
+void check_RET_inst(instruction_t *inst, instruction_info_t *info);
+void check_CALL_inst(instruction_t *inst, instruction_info_t *info);
 
 // flag instructions
-void check_flag_inst(instruction *inst, instruction_info *info);
+void check_flag_inst(instruction_t *inst, instruction_info_t *info);
 
 // memory instructions
-void check_mem_inst(instruction *inst, instruction_info *info);
-void check_stack_inst(instruction *inst, instruction_info *info);
+void check_mem_inst(instruction_t *inst, instruction_info_t *info);
+void check_stack_inst(instruction_t *inst, instruction_info_t *info);
 
 // data transfer
-void check_MOVr_inst(instruction *inst, instruction_info *info);
-void check_MOVe_inst(instruction *inst, instruction_info *info);
-void get_MOV_inst(instruction *inst, instruction_info *info);
+void check_MOVr_inst(instruction_t *inst, instruction_info_t *info);
+void check_MOVe_inst(instruction_t *inst, instruction_info_t *info);
+void get_MOV_inst(instruction_t *inst, instruction_info_t *info);
 
-void check_NOP_inst(instruction *inst, instruction_info *info);
+void check_NOP_inst(instruction_t *inst, instruction_info_t *info);
 
 // indexed through the mn_index
-instruction_info instruction_translation[] = 
+// only instruction which can contain a label need the max_size attribute
+// because the max_size attribute is always 3 we can easily remove it but i leave it here for scalability
+instruction_info_t instruction_info[] = 
 {
-    [ADD_mn] = {get_opcode_mem_or_reg, .reg = ADDr, .mem = ADDm},
-    [AND_mn] = {get_opcode_mem_or_reg, .reg = ANDr, .mem = ANDm},
-    [XOR_mn] = {get_opcode_mem_or_reg, .reg = XORr, .mem = XORm},
-    [OR_mn]  = {get_opcode_mem_or_reg, .reg = ORr,  .mem = ORm},
+    [ADD_mn] = {get_opcode_mem_or_reg, .reg = ADDr, .mem = ADDm, .max_size = 3},
+    [AND_mn] = {get_opcode_mem_or_reg, .reg = ANDr, .mem = ANDm, .max_size = 3},
+    [XOR_mn] = {get_opcode_mem_or_reg, .reg = XORr, .mem = XORm, .max_size = 3},
+    [OR_mn]  = {get_opcode_mem_or_reg, .reg = ORr,  .mem = ORm,  .max_size = 3},
 
     [ADDr_mn] = {check_reg_inst, .reg = ADDr},
     [ANDr_mn] = {check_reg_inst, .reg = ANDr},
     [XORr_mn] = {check_reg_inst, .reg = XORr},
     [ORr_mn]  = {check_reg_inst, .reg = ORr},
 
-    [ADDm_mn] = {check_arr_mem_inst, .reg = ADDm},
-    [ANDm_mn] = {check_arr_mem_inst, .reg = ANDm},
-    [XORm_mn] = {check_arr_mem_inst, .reg = XORm},
-    [ORm_mn]  = {check_arr_mem_inst, .reg = ORm},
+    [ADDm_mn] = {check_arr_mem_inst, .reg = ADDm, .max_size = 3},
+    [ANDm_mn] = {check_arr_mem_inst, .reg = ANDm, .max_size = 3},
+    [XORm_mn] = {check_arr_mem_inst, .reg = XORm, .max_size = 3},
+    [ORm_mn]  = {check_arr_mem_inst, .reg = ORm,  .max_size = 3},
 
     [SHL_mn] = {check_shift_inst, .opcode = SH | 0b00 << 6}, // rotate = 0, direction = 0
     [SHR_mn] = {check_shift_inst, .opcode = SH | 0b01 << 6}, // rotate = 0, direction = 1
@@ -79,18 +82,18 @@ instruction_info instruction_translation[] =
     [DEC_mn] = {check_OOI_inst, .opcode = OOI | 0b10 << 6},
     [NEG_mn] = {check_OOI_inst, .opcode = OOI | 0b11 << 6},
 
-    [JMP_mn] = {check_branch_inst, .opcode = JMP}, // this instruction is unconditionally
-    [BCS_mn] = {check_branch_inst, .opcode = JMP  | CARRY    << 4 }, // shift in the condition code
-    [BZS_mn] = {check_branch_inst, .opcode = JMP  | ZERO     << 4 },
-    [BVS_mn] = {check_branch_inst, .opcode = JMP  | OVERFLOW << 4 },
-    [BCC_mn] = {check_branch_inst, .opcode = JMPn | CARRY    << 4 },
-    [BZC_mn] = {check_branch_inst, .opcode = JMPn | ZERO     << 4 },
-    [BVC_mn] = {check_branch_inst, .opcode = JMPn | OVERFLOW << 4 },
+    [JMP_mn] = {check_branch_inst, .opcode = JMP, .max_size = 3 }, // this instruction is unconditionally
+    [BCS_mn] = {check_branch_inst, .opcode = JMP  | CARRY    << 4, .max_size = 3 }, // shift in the condition code
+    [BZS_mn] = {check_branch_inst, .opcode = JMP  | ZERO     << 4, .max_size = 3 },
+    [BVS_mn] = {check_branch_inst, .opcode = JMP  | OVERFLOW << 4, .max_size = 3 },
+    [BCC_mn] = {check_branch_inst, .opcode = JMPn | CARRY    << 4, .max_size = 3 },
+    [BZC_mn] = {check_branch_inst, .opcode = JMPn | ZERO     << 4, .max_size = 3 },
+    [BVC_mn] = {check_branch_inst, .opcode = JMPn | OVERFLOW << 4, .max_size = 3 },
 
-    [CALL_mn]  = {check_CALL_inst, .opcode = JMP  | 0b11 << 6},
-    [CALLn_mn] = {check_CALL_inst, .opcode = JMPn | 0b11 << 6},
-    [RET_mn]   = {check_RET_inst,  .opcode = JMP  | 0b10 << 6},
-    [RETn_mn]  = {check_RET_inst,  .opcode = JMPn | 0b10 << 6},
+    [CALL_mn]  = {check_CALL_inst, .opcode = JMP  | 0b11 << 6, .max_size = 3},
+    [CALLn_mn] = {check_CALL_inst, .opcode = JMPn | 0b11 << 6, .max_size = 3},
+    [RET_mn]   = {check_RET_inst,  .opcode = JMP  | 0b10 << 6, .max_size = 3},
+    [RETn_mn]  = {check_RET_inst,  .opcode = JMPn | 0b10 << 6, .max_size = 3},
 
     [CLF_mn] = {check_flag_inst, .opcode = EF | 0 << 6}, // set_or_clear = 0
     [SEF_mn] = {check_flag_inst, .opcode = EF | 1 << 6}, // set_or_clear = 1
@@ -102,8 +105,8 @@ instruction_info instruction_translation[] =
     [SZF_mn] = {check_flag_inst, .opcode = EF | ZERO     << 4 | 1 << 6},
     [SVF_mn] = {check_flag_inst, .opcode = EF | OVERFLOW << 4 | 1 << 6},
 
-    [ST_mn]   = {check_mem_inst,   .opcode = ST},
-    [LD_mn]   = {check_mem_inst,   .opcode = LD},
+    [ST_mn]   = {check_mem_inst,   .opcode = ST, .max_size = 3},
+    [LD_mn]   = {check_mem_inst,   .opcode = LD, .max_size = 3},
     [POP_mn]  = {check_stack_inst, .opcode = LD | 0b11 << 6},
     [PUSH_mn] = {check_stack_inst, .opcode = ST | 0b11 << 6},
 
@@ -115,7 +118,7 @@ instruction_info instruction_translation[] =
     [NOP_mn] = {check_NOP_inst, .opcode = ORr},
 };
 
-void get_opcode_mem_or_reg(instruction *inst, instruction_info *info)
+void get_opcode_mem_or_reg(instruction_t *inst, instruction_info_t *info)
 {
     if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == REGISTER)
     {
@@ -150,7 +153,7 @@ void get_opcode_mem_or_reg(instruction *inst, instruction_info *info)
     printf("Invalid operand types for an arithmetic instruction.\n");
     exit(EXIT_FAILURE);
 }
-void check_reg_inst(instruction *inst, instruction_info *info)
+void check_reg_inst(instruction_t *inst, instruction_info_t *info)
 {
     if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == REGISTER)
     {
@@ -161,7 +164,7 @@ void check_reg_inst(instruction *inst, instruction_info *info)
     printf("Invalid operand types for an arithmetic register instruction.\n");
     exit(EXIT_FAILURE);
 }
-void check_arr_mem_inst(instruction *inst, instruction_info *info)
+void check_arr_mem_inst(instruction_t *inst, instruction_info_t *info)
 {
     if (inst->op_1.op_type == REGISTER && (inst->op_2.op_type == ADDR_8 || inst->op_2.op_type == ADDR_16 || inst->op_2.op_type == MAR || inst->op_2.op_type == IMM_8))
     {
@@ -189,7 +192,7 @@ void check_arr_mem_inst(instruction *inst, instruction_info *info)
     printf("Invalid operand types for an arithmetic memory instruction.\n");
     exit(EXIT_FAILURE);
 }
-void check_shift_inst(instruction *inst, instruction_info *info)
+void check_shift_inst(instruction_t *inst, instruction_info_t *info)
 {
     if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == UNUSED)
     {
@@ -200,7 +203,7 @@ void check_shift_inst(instruction *inst, instruction_info *info)
     printf("Invalid operand types for shift instruction.\n");
     exit(EXIT_FAILURE);
 }
-void check_OOI_inst(instruction *inst, instruction_info *info)
+void check_OOI_inst(instruction_t *inst, instruction_info_t *info)
 {
     if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == UNUSED)
     {
@@ -212,7 +215,7 @@ void check_OOI_inst(instruction *inst, instruction_info *info)
     exit(EXIT_FAILURE); 
     return;
 }
-void check_branch_inst(instruction *inst, instruction_info *info)
+void check_branch_inst(instruction_t *inst, instruction_info_t *info)
 {
     // TODO: a BZS can be executed with an extra flag argument "BZS c" but it will not have an impact
 
@@ -232,7 +235,7 @@ void check_branch_inst(instruction *inst, instruction_info *info)
     exit(EXIT_FAILURE); 
     return;
 }
-void check_CALL_inst(instruction *inst, instruction_info *info)
+void check_CALL_inst(instruction_t *inst, instruction_info_t *info)
 {
     if ((inst->op_1.op_type == ADDR_16 || inst->op_1.op_type == ADDR_8) && (inst->op_2.op_type == UNUSED || inst->op_2.op_type == FLAG))
     {
@@ -262,7 +265,7 @@ void check_CALL_inst(instruction *inst, instruction_info *info)
     exit(EXIT_FAILURE); 
     return;
 }
-void check_RET_inst(instruction *inst, instruction_info *info)
+void check_RET_inst(instruction_t *inst, instruction_info_t *info)
 {
     if ((inst->op_1.op_type == UNUSED || inst->op_1.op_type == FLAG) && inst->op_2.op_type == UNUSED)
     {
@@ -292,7 +295,7 @@ void check_RET_inst(instruction *inst, instruction_info *info)
     exit(EXIT_FAILURE); 
     return;
 }
-void check_flag_inst(instruction *inst, instruction_info *info)
+void check_flag_inst(instruction_t *inst, instruction_info_t *info)
 {
     if ((inst->op_1.op_type == UNUSED || inst->op_1.op_type == FLAG) && inst->op_2.op_type == UNUSED) 
     {
@@ -321,7 +324,7 @@ void check_flag_inst(instruction *inst, instruction_info *info)
     exit(EXIT_FAILURE); 
     return;
 }
-void check_mem_inst(instruction *inst, instruction_info *info)
+void check_mem_inst(instruction_t *inst, instruction_info_t *info)
 {
     if (inst->op_1.op_type == REGISTER && (inst->op_2.op_type == ADDR_8 || inst->op_2.op_type == ADDR_16 || inst->op_2.op_type == MAR))
     {
@@ -349,7 +352,7 @@ void check_mem_inst(instruction *inst, instruction_info *info)
     exit(EXIT_FAILURE); 
     return;
 }
-void check_stack_inst(instruction *inst, instruction_info *info)
+void check_stack_inst(instruction_t *inst, instruction_info_t *info)
 {
     if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == UNUSED)
     {
@@ -360,7 +363,7 @@ void check_stack_inst(instruction *inst, instruction_info *info)
     exit(EXIT_FAILURE); 
     return;
 }
-void check_MOVr_inst(instruction *inst, instruction_info *info)
+void check_MOVr_inst(instruction_t *inst, instruction_info_t *info)
 {
     if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == REGISTER)
     {
@@ -371,15 +374,15 @@ void check_MOVr_inst(instruction *inst, instruction_info *info)
     exit(EXIT_FAILURE);
     return;
 }
-void check_MOVe_inst(instruction *inst, instruction_info *info)
+void check_MOVe_inst(instruction_t *inst, instruction_info_t *info)
 {
     return;
 }
-void get_MOV_inst(instruction *inst, instruction_info *info)
+void get_MOV_inst(instruction_t *inst, instruction_info_t *info)
 {
     return;
 }
-void check_NOP_inst(instruction *inst, instruction_info *info)
+void check_NOP_inst(instruction_t *inst, instruction_info_t *info)
 {
     // emit a or r0, r0
     inst->opcode = info->opcode | 0 << 4 | 0 << 6;
@@ -391,7 +394,7 @@ int cmpstr(const void *a, const void *b)
     return strcmp((const char *)a, *(const char **)b);
 }
 
-void parse_mnemonic(char *mnemonic, instruction *instruction)
+int parse_mnemonic(char *mnemonic, instruction_t *instruction)
 {
     if (instruction->op_1.op_type == LABEL && instruction->op_2.op_type == LABEL)
     {
@@ -403,20 +406,28 @@ void parse_mnemonic(char *mnemonic, instruction *instruction)
     
     if (result == NULL)
     {
-        printf("Undefined mnemonic: \"%s\".\n", mnemonic);
-        exit(EXIT_FAILURE);
-    }
-
-    // replace the label with values
-    if (instruction->op_1.op_type == LABEL) {
-        //get_label_val(&instruction->op_1);
-    }
-    if (instruction->op_2.op_type == LABEL) {
-        //get_label_val(&instruction->op_2);
+        return -1;
     }
     
     int mn_index = (int)(result - mnemonics);
 
-    instruction_translation[mn_index].func(instruction, &instruction_translation[mn_index]);
-    return;
+    instruction_info[mn_index].func(instruction, &instruction_info[mn_index]);
+    return 0;
+}
+
+int get_intermediate_mnemonic(char *mnemonic)
+{
+    char **result = bsearch(mnemonic, mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0]), sizeof(char *), cmpstr);
+    
+    if (result == NULL)
+    {
+        return -1;
+    }
+    
+    return (int)(result - mnemonics);
+}
+
+int get_max_size(int mn_index)
+{    
+    return instruction_info[mn_index].max_size;
 }

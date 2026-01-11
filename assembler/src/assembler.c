@@ -4,14 +4,11 @@
 #include <string.h>
 #include <stdbool.h>
 #include <strings.h>
+#include <sys/types.h>
 
 #include "instruction.h"
 #include "mnemonic.h"
 #include "label.h"
-
-#define MAX_MNEMONIC_LEN 10
-#define MAX_OPPERAND_LEN 20 // + 1 because null termination
-#define MAX_OPERAND 3
 
 #define MAX_INSTRUCTIONS 100
 
@@ -24,32 +21,42 @@ void print_bits(uint8_t value)
     printf("\n");
 }
 
-void print_instruction(const instruction *instr) {
+void print_instruction(const instruction_t *instr) {
     if (!instr) {
         printf("Error: instruction pointer is NULL!\n");
         return;
     }
 
-    printf("opcode: %x\n", instr->opcode);
-    putc('\n', stdout);
+    printf("opcode: %d || ", instr->opcode);
+    print_bits(instr->opcode);
+    printf("\n");
     if (instr->op_1.op_type != UNUSED)
     {
         printf("first operand:\n");
-        printf("value: %d\n", instr->op_1.value);
-        printf("operand_type: %d\n", instr->op_1.op_type);
+        printf("\tvalue: %d\n", instr->op_1.value);
+        printf("\toperand_type: %d", instr->op_1.op_type);
     }
-    putc('\n', stdout);
+    printf("\n");
     if (instr->op_2.op_type != UNUSED)
     {
-        printf("second operand:\n");
-        printf("value: %d\n", instr->op_2.value);
-        printf("operand_type: %d\n", instr->op_2.op_type);
+        printf("\nsecond operand:\n");
+        printf("\tvalue: %d\n", instr->op_2.value);
+        printf("\toperand_type: %d", instr->op_2.op_type);
     }
     //printf("address: %d\n", instr->address);
-    puts("------------------");
+    printf("------------------\n");
 }
 
-void parse_operand(operand *operand_struct, char *operand_text)
+void print_instruction_list(instruction_list_t *instruction_list)
+{
+    for (int i = 0; i < instruction_list->count; i++)
+    {   
+        printf("%d. instruction\n", i);
+        print_instruction(&instruction_list->list[i]);
+    }
+}
+
+void parse_operand(operand_t *operand_struct, char *operand_text)
 {   
     if(strcasecmp(operand_text, "MAR") == 0)
     {
@@ -156,13 +163,17 @@ void parse_operand(operand *operand_struct, char *operand_text)
     operand_struct->value = val & 0xffff;
 }
 
-char **get_operands(char *instruction_text, char **operands)
+// the current instruction struct is designed to only hold 2 operands
+// because the isa does not support instructions with more opperands
+#define MAX_OPERAND_COUNT 2
+
+void get_operands(char *instruction_text, char **operands)
 {
     operands[0] = strtok(instruction_text, " ,");
     operands[1] = NULL;
     operands[2] = NULL;
 
-    for (int i = 1; i < MAX_OPERAND; i++)
+    for (int i = 1; i < MAX_OPERAND_COUNT + 1; i++)
     {
         operands[i] = strtok(NULL, " ,");
         if(operands[i] == NULL)
@@ -170,12 +181,10 @@ char **get_operands(char *instruction_text, char **operands)
             break;
         }
     }
-
-    return operands;
 }
 
 // converts the instructions structs to binary format by inserting the opcodes and the immediate/addresses
-uint8_t *convert_to_bin(instruction *instructions, int inst_count, long *bin_size_final){
+uint8_t *convert_to_bin(instruction_t *instructions, int inst_count, long *bin_size_final){
     int bin_i = 0;
 
     // use MAX_INSTRUCTIONS is not very good some instructions have 2 or 3 bytes
@@ -232,30 +241,41 @@ uint8_t *convert_to_bin(instruction *instructions, int inst_count, long *bin_siz
     return bin;
 }
 
-uint8_t *get_bin(FILE *assembly_file, long *bin_size)
+void parse_assembly_file(char *filename, instruction_list_t *instruction_list, label_list_t *label_list)
 {
-    instruction instructions[MAX_INSTRUCTIONS];
-    int instruction_i = 0;
     size_t len = 0;
+    ssize_t nread = 0;
     char *line = NULL;
-    int nread = 0;
 
-    // the label list struct ist globally defined and is used around the whole assembler
-    //init_label_list();
+    // initialise all dynamic lists
+    instruction_list->list     = malloc(50 * sizeof(instruction_t));
+    instruction_list->capacity = 50;
+    instruction_list->count    = 0;
 
-    // read in the labels and instructions but not translate them yet
-    while ((nread = getline(&line, &len, assembly_file)) != -1)
+    label_list->list     = malloc(sizeof(label_t) * 10);
+    label_list->capacity = 10;
+    label_list->count    = 0;
+
+    FILE *asm_file = fopen(filename, "rb");
+
+    while ((nread = getline(&line, &len, asm_file)) != -1)
     {
         // replace the end of line with a null terminator
         if (nread > 0 && line[nread - 1] == '\n') {
             line[nread - 1] = '\0';
         }
         
-        if (line[0] == '\0')
-        {
-            goto skip;
+        char *line_saved = line;
+
+        while (*line == ' ') {
+            line++;
         }
 
+        if (*line == '\0') {
+            line = line_saved;
+            goto skip;
+        }
+        
         // check if directive
         for(int i = 0; line[i] != '\0'; i++)
         {
@@ -272,23 +292,15 @@ uint8_t *get_bin(FILE *assembly_file, long *bin_size)
             }
         }
 
-        if (instruction_i >= MAX_INSTRUCTIONS)
-        {
-            printf("The MAX_instructions limit is to less.");
-            exit(EXIT_FAILURE);
-        }
-
-        //printf("line: %s\n", line);
-        char *operands[MAX_OPERAND];
+        char *operands[MAX_OPERAND_COUNT];
         get_operands(line, operands);
+        
+        instruction_t curr_instruction = 
+        {
+            .op_1.op_type = UNUSED,
+            .op_2.op_type = UNUSED
+        };
 
-        instruction curr_instruction;
-
-        curr_instruction.op_1.op_type = UNUSED;
-        curr_instruction.op_2.op_type = UNUSED;
-        // The instruction mnemonic is saved for later translation 
-        curr_instruction.mnemonic_text = strdup(operands[0]);
- 
         if (operands[1] != NULL)
         {
             parse_operand(&curr_instruction.op_1, operands[1]);
@@ -299,71 +311,98 @@ uint8_t *get_bin(FILE *assembly_file, long *bin_size)
             }
         }
 
-        // if (is_label(operands[0]))
-        // {
-        //     if (curr_instruction.op_1.op_type == UNUSED && curr_instruction.op_2.op_type == UNUSED)
-        //     {
-        //         add_label(operands[0], instruction_i);
-        //         goto skip;
-        //     }
-        //     else {
-        //         printf("A label can not have operands.\n");
-        //         exit(EXIT_FAILURE);
-        //     }
-        // }
+        // instruction containing a label
+        if ((curr_instruction.op_1.op_type == LABEL && curr_instruction.op_2.op_type != LABEL) || (curr_instruction.op_1.op_type != LABEL && curr_instruction.op_2.op_type == LABEL))
+        {
+            // could save the index of instructions having a label as one of their opperands here to prevent an extra step later 
+            // but decided to NOT do ist because of added complexity
 
-        instructions[instruction_i++] = curr_instruction;
+            // use an intermediate representation which saves the complete pseudo instruction
+            // we know that the instruction is not ready when one of the operands has the type label
+            curr_instruction.opcode = get_intermediate_mnemonic(operands[0]);
+            
+            if (curr_instruction.opcode == -1)
+            {
+                printf("Unknown mnemonic: \"%s\".\n", operands[0]);
+                exit(EXIT_FAILURE);
+            }
+        }else
+        {
+            if(parse_mnemonic(operands[0], &curr_instruction) == -1)
+            {
+                // mnemonic is not recognized
+                if (is_label(operands[0]))
+                {   
+                    // check if there are more operands
+                    if (curr_instruction.op_1.op_type == UNUSED && curr_instruction.op_2.op_type == UNUSED)
+                    {
+                        add_label(label_list, &(label_t){.text = strdup(operands[0]), .instruction_index = instruction_list->count - 1});
+                        goto skip;
+                    }
+                    else {
+                        printf("A label can not have operands.\n");
+                        exit(EXIT_FAILURE);
+                    }
+                } else
+                {
+                    printf("Unknown mnemonic: \"%s\".\n", operands[0]);
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+
+        if (instruction_list->count >= instruction_list->capacity)
+        {
+            instruction_list->capacity *= 2;
+            instruction_list->list = realloc(instruction_list->list, sizeof(instruction_t) * instruction_list->capacity);
+        }
+
+        instruction_list->list[instruction_list->count++] = curr_instruction;
+
+        //printf("inst_i: %d\noperand: %s\n",instruction_list->count-1, operands[0]);
 
         skip:
             free(line);
             line = NULL;
     }
-
-    // iterate over the instructions and translate them to opcodes
-    // instruction_i is the count of instructions
-    for (int i = 0; i < instruction_i; i++)
-    {
-        // save the ptr to free later
-        char *mnemonic_text = instructions[i].mnemonic_text;
-        // the function exist if an error occurs
-        parse_mnemonic(mnemonic_text, &instructions[i]);
-        free(mnemonic_text);
-    }
-
-    return convert_to_bin(instructions, instruction_i, bin_size);
 }
 
-int check_if_asm_file(const char *filename)
+int check_correct_parameters(int argc, char **argv)
 {
-    char *dot = strrchr(filename, '.');
-    if (dot == NULL) return 0;
-    return strcmp(dot + 1, "asm");
+    if (argc != 2)
+    {
+        printf("To many or to little arguments provided.\n");
+        return 1;
+    }
+
+    char *dot = strrchr(argv[1], '.');
+    if (dot == NULL)
+    {
+        printf("The filename is does not contain a '.' character.\n");
+        return 1;
+    }
+
+    if (strcmp(dot + 1, "asm"))
+    {
+        printf("The file extension is not 'bin'.\n");
+        return 1;
+    }
+    return 0;
 }
 
 int main(int argc, char **argv)
 {
-    if (argc != 2)
-    {
-        printf("To many or to little arguments provided.");
-        return 1;
-    }
+    check_correct_parameters(argc, argv);
 
-    if (check_if_asm_file(argv[1]))
-    {
-        printf("Either the file extension is not 'bin' or the file dont have an extension.");
-        return 1;
-    }
+    instruction_list_t instruction_list;
+    label_list_t label_list;
 
-    FILE *assembly = fopen(argv[1], "rb");
+    parse_assembly_file(argv[1], &instruction_list, &label_list);
 
-    long bin_size;
-    uint8_t *bin = get_bin(assembly, &bin_size);
-    
-    FILE *bin_file = fopen("prog.bin", "wb");
-    fwrite(bin, sizeof(uint8_t), bin_size, bin_file);
+    print_instruction_list(&instruction_list);
+    print_label_list(&label_list);
 
-    free(bin);
-    fclose(assembly);
+    free_label_list(&label_list);
 
     return 0;
 }
