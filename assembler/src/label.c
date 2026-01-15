@@ -98,7 +98,7 @@ label_t *find_label(label_list_t *label_list, char *name)
 
 int get_inst_len_label(instruction_t *instruction, label_list_t *label_list, int pc)
 {
-    if (instruction->op_1.op_type != LABEL && instruction->op_2.op_type != LABEL)
+    if (instruction->op_1.op_type != TOKEN_LABEL && instruction->op_2.op_type != TOKEN_LABEL)
     {
         // the instruction has 2 byte if it contains one 8 bit type
         if (instruction->op_1.op_type == ADDR_8 || instruction->op_2.op_type == ADDR_8 ||
@@ -120,7 +120,7 @@ int get_inst_len_label(instruction_t *instruction, label_list_t *label_list, int
     operand_t *operand;
 
     // its impossible that both operands have labels due to check made befor calling this function
-    if (instruction->op_1.op_type == LABEL)
+    if (instruction->op_1.op_type == TOKEN_LABEL)
     {
         label = find_label(label_list, instruction->op_1.label);
         operand = &instruction->op_1;

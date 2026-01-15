@@ -5,40 +5,36 @@
 
 typedef enum
 {
-    REGISTER,
+    TOKEN_REGISTER,
+    TOKEN_LABEL,
+    TOKEN_DIRECTIVE,
 
     // address
-    PERCENT,
-
-    // only for labels
-    COLON,
+    TOKEN_PERCENT,
 
     // structure
-    NEWLINE,
-    COMMA,
+    TOKEN_NEWLINE,
+    TOKEN_COMMA,
     
     // control flow (in expressions)
-    LPAREN,
-    RPAREN,
+    TOKEN_LPAREN,
+    TOKEN_RPAREN,
     
     // expressions
-    PLUS,
-    MINUS,
-    STAR,
-    SLASH,
-    SHL, // "<<"
-    SHR, // ">>"
-    AND, // '&'
-    OR,  // '|'
-    XOR, // '^'
-    NOT, // '!'
-
-    // used for identification of directives (decimal numbers are not suported in the isa)
-    DOT,
+    TOKEN_PLUS,
+    TOKEN_MINUS,
+    TOKEN_STAR,
+    TOKEN_SLASH,
+    TOKEN_SHL, // "<<"
+    TOKEN_SHR, // ">>"
+    TOKEN_AND, // '&'
+    TOKEN_OR,  // '|'
+    TOKEN_XOR, // '^'
+    TOKEN_NOT, // '!'
 
     // used for the instruction names and values (e.g. ADD )
-    NUMBER,
-    STRING,
+    TOKEN_NUMBER,
+    TOKEN_STRING,
 }TokenType;
 
 typedef enum
@@ -65,5 +61,7 @@ typedef struct
     int capacity;
     int count;
 }TokenList;
+
+int tokenize(TokenList *tokens, char *text_buffer, int buffer_len);
 
 #endif // LEXER_H

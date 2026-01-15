@@ -104,7 +104,7 @@ void parse_operand(operand_t *operand_struct, char *operand_text)
             exit(EXIT_FAILURE);
         }
         
-        operand_struct->op_type = REGISTER;
+        operand_struct->op_type = TOKEN_REGISTER;
         operand_struct->value = (int16_t)reg;
         return;
     }
@@ -136,7 +136,7 @@ void parse_operand(operand_t *operand_struct, char *operand_text)
             exit(EXIT_FAILURE);
         }
 
-        operand_struct->op_type = LABEL;
+        operand_struct->op_type = TOKEN_LABEL;
         operand_struct->label = strdup(operand_text);
         return;
     }
@@ -312,7 +312,7 @@ void parse_assembly_file(char *filename, instruction_list_t *instruction_list, l
         }
 
         // instruction containing a label
-        if ((curr_instruction.op_1.op_type == LABEL && curr_instruction.op_2.op_type != LABEL) || (curr_instruction.op_1.op_type != LABEL && curr_instruction.op_2.op_type == LABEL))
+        if ((curr_instruction.op_1.op_type == TOKEN_LABEL && curr_instruction.op_2.op_type != TOKEN_LABEL) || (curr_instruction.op_1.op_type != TOKEN_LABEL && curr_instruction.op_2.op_type == TOKEN_LABEL))
         {
             // could save the index of instructions having a label as one of their opperands here to prevent an extra step later 
             // but decided to NOT do ist because of added complexity

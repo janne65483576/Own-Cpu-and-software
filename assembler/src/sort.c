@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-int cmpstr(const void *a, const void *b) {
+int cmpchr(const void *a, const void *b) {
     return strcmp(*(const char **)a, *(const char **)b);
 }
 
@@ -106,7 +106,7 @@ int main()
         return 1;
     }
 
-    qsort(mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0]), sizeof(char *), cmpstr);
+    qsort(mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0]), sizeof(char *), cmpchr);
 
     printf("string:\n");
     printf("char *mnemonics[] = {");

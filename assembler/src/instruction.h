@@ -43,7 +43,7 @@ typedef enum
 
 typedef enum
 {
-    REGISTER, MAR, ADDR_16, IMM_8, ADDR_8, LABEL, UNUSED, FLAG
+    TOKEN_REGISTER, MAR, ADDR_16, IMM_8, ADDR_8, TOKEN_LABEL, UNUSED, FLAG
 }operand_data_t;
 
 typedef struct{

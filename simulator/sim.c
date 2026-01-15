@@ -6,7 +6,7 @@
 
 typedef enum
 {
-    ADDr, ANDr, ORr, XORr, ADD, AND, XOR, OR, OOI, SH, LD, ST, JMP, JMPn, MOV, MOVe
+    ADDr, ANDr, ORr, XORr, ADD, TOKEN_AND, TOKEN_XOR, TOKEN_OR, OOI, SH, LD, ST, JMP, JMPn, MOV, MOVe
 }opcodes;
 
 typedef enum

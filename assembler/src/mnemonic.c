@@ -120,14 +120,14 @@ instruction_info_t instruction_info[] =
 
 void get_opcode_mem_or_reg(instruction_t *inst, instruction_info_t *info)
 {
-    if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == REGISTER)
+    if (inst->op_1.op_type == TOKEN_REGISTER && inst->op_2.op_type == TOKEN_REGISTER)
     {
         // register-register instruction
         inst->opcode = info->reg | inst->op_1.value << 4 | inst->op_2.value << 6;
         return;
     }
     
-    if (inst->op_1.op_type == REGISTER && (inst->op_2.op_type == ADDR_8 || inst->op_2.op_type == ADDR_16 || inst->op_2.op_type == MAR || inst->op_2.op_type == IMM_8))
+    if (inst->op_1.op_type == TOKEN_REGISTER && (inst->op_2.op_type == ADDR_8 || inst->op_2.op_type == ADDR_16 || inst->op_2.op_type == MAR || inst->op_2.op_type == IMM_8))
     {
         inst->opcode = info->mem | inst->op_1.value << 4;
         
@@ -155,7 +155,7 @@ void get_opcode_mem_or_reg(instruction_t *inst, instruction_info_t *info)
 }
 void check_reg_inst(instruction_t *inst, instruction_info_t *info)
 {
-    if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == REGISTER)
+    if (inst->op_1.op_type == TOKEN_REGISTER && inst->op_2.op_type == TOKEN_REGISTER)
     {
         inst->opcode = info->opcode | inst->op_1.value << 4 | inst->op_2.value << 6;
         return;
@@ -166,7 +166,7 @@ void check_reg_inst(instruction_t *inst, instruction_info_t *info)
 }
 void check_arr_mem_inst(instruction_t *inst, instruction_info_t *info)
 {
-    if (inst->op_1.op_type == REGISTER && (inst->op_2.op_type == ADDR_8 || inst->op_2.op_type == ADDR_16 || inst->op_2.op_type == MAR || inst->op_2.op_type == IMM_8))
+    if (inst->op_1.op_type == TOKEN_REGISTER && (inst->op_2.op_type == ADDR_8 || inst->op_2.op_type == ADDR_16 || inst->op_2.op_type == MAR || inst->op_2.op_type == IMM_8))
     {
         inst->opcode = info->mem | inst->op_1.value << 4;
         
@@ -194,7 +194,7 @@ void check_arr_mem_inst(instruction_t *inst, instruction_info_t *info)
 }
 void check_shift_inst(instruction_t *inst, instruction_info_t *info)
 {
-    if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == UNUSED)
+    if (inst->op_1.op_type == TOKEN_REGISTER && inst->op_2.op_type == UNUSED)
     {
         inst->opcode = info->opcode | inst->op_1.value << 4;
         return;
@@ -205,7 +205,7 @@ void check_shift_inst(instruction_t *inst, instruction_info_t *info)
 }
 void check_OOI_inst(instruction_t *inst, instruction_info_t *info)
 {
-    if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == UNUSED)
+    if (inst->op_1.op_type == TOKEN_REGISTER && inst->op_2.op_type == UNUSED)
     {
         inst->opcode = info->opcode | inst->op_1.value << 4;
         return;
@@ -326,7 +326,7 @@ void check_flag_inst(instruction_t *inst, instruction_info_t *info)
 }
 void check_mem_inst(instruction_t *inst, instruction_info_t *info)
 {
-    if (inst->op_1.op_type == REGISTER && (inst->op_2.op_type == ADDR_8 || inst->op_2.op_type == ADDR_16 || inst->op_2.op_type == MAR))
+    if (inst->op_1.op_type == TOKEN_REGISTER && (inst->op_2.op_type == ADDR_8 || inst->op_2.op_type == ADDR_16 || inst->op_2.op_type == MAR))
     {
         inst->opcode = info->opcode | inst->op_1.value << 4;
 
@@ -354,7 +354,7 @@ void check_mem_inst(instruction_t *inst, instruction_info_t *info)
 }
 void check_stack_inst(instruction_t *inst, instruction_info_t *info)
 {
-    if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == UNUSED)
+    if (inst->op_1.op_type == TOKEN_REGISTER && inst->op_2.op_type == UNUSED)
     {
         inst->opcode = info->opcode;
     }
@@ -365,7 +365,7 @@ void check_stack_inst(instruction_t *inst, instruction_info_t *info)
 }
 void check_MOVr_inst(instruction_t *inst, instruction_info_t *info)
 {
-    if (inst->op_1.op_type == REGISTER && inst->op_2.op_type == REGISTER)
+    if (inst->op_1.op_type == TOKEN_REGISTER && inst->op_2.op_type == TOKEN_REGISTER)
     {
         inst->opcode = info->opcode | inst->op_1.value << 4 | inst->op_2.value;
     }
@@ -389,20 +389,20 @@ void check_NOP_inst(instruction_t *inst, instruction_info_t *info)
     return;
 }
 
-int cmpstr(const void *a, const void *b) 
+int cmpchr(const void *a, const void *b) 
 {
     return strcmp((const char *)a, *(const char **)b);
 }
 
 int parse_mnemonic(char *mnemonic, instruction_t *instruction)
 {
-    if (instruction->op_1.op_type == LABEL && instruction->op_2.op_type == LABEL)
+    if (instruction->op_1.op_type == TOKEN_LABEL && instruction->op_2.op_type == TOKEN_LABEL)
     {
         printf("A Instruction with double label does not exist.\n");
         exit(EXIT_FAILURE);
     }
     
-    char **result = bsearch(mnemonic, mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0]), sizeof(char *), cmpstr);
+    char **result = bsearch(mnemonic, mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0]), sizeof(char *), cmpchr);
     
     if (result == NULL)
     {
@@ -417,7 +417,7 @@ int parse_mnemonic(char *mnemonic, instruction_t *instruction)
 
 int get_intermediate_mnemonic(char *mnemonic)
 {
-    char **result = bsearch(mnemonic, mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0]), sizeof(char *), cmpstr);
+    char **result = bsearch(mnemonic, mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0]), sizeof(char *), cmpchr);
     
     if (result == NULL)
     {
