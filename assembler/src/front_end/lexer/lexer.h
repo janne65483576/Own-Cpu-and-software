@@ -39,7 +39,7 @@ typedef enum
 
 typedef enum
 {
-    R0, R1, R2, R3, SP, MAR, MBR, FLAGS
+    Token_R0, Token_R1, Token_R2, Token_R3, Token_PC, Token_SP, Token_MAR, Token_MBR, Token_FLAGS
 }TokenRegister;
 
 typedef struct

@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "lexer.h"
+#include "lexer/lexer.h"
 #include <stdlib.h>
 
 #include "lexer/lexer_debug.h"
@@ -28,7 +28,7 @@ int main()
 
     if (tokenize(&tokens, text_buffer, len) == -1)
     {
-        printf("enncounterd an error\n");
+        printf("entcountred an error\n");
         fclose(file);
         free(text_buffer);
         return -1;

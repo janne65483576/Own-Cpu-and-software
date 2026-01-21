@@ -33,14 +33,14 @@ const char *register_to_string(TokenRegister reg)
 {
     switch (reg)
     {
-        case R0:    return "R0";
-        case R1:    return "R1";
-        case R2:    return "R2";
-        case R3:    return "R3";
-        case SP:    return "SP";
-        case MAR:   return "MAR";
-        case MBR:   return "MBR";
-        case FLAGS: return "FLAGS";
+        case Token_R0:    return "R0";
+        case Token_R1:    return "R1";
+        case Token_R2:    return "R2";
+        case Token_R3:    return "R3";
+        case Token_SP:    return "SP";
+        case Token_MAR:   return "MAR";
+        case Token_MBR:   return "MBR";
+        case Token_FLAGS: return "FLAGS";
         default:    return "UNKNOWN_REG";
     }
 }

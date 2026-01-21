@@ -119,19 +119,19 @@ int tokenize(TokenList* tokens, char *text_buffer, int buffer_len)
         if (bufCmp(text_buffer, "sp", buffer_index, buffer_len) == true)
         {
             curr_token.type = TOKEN_REGISTER;
-            curr_token.reg  = SP;
+            curr_token.reg  = Token_SP;
             buffer_index += 2;
         }
         else if (bufCmp(text_buffer, "mar", buffer_index, buffer_len) == true)
         {
             curr_token.type = TOKEN_REGISTER;
-            curr_token.reg  = MAR;
+            curr_token.reg  = Token_MAR;
             buffer_index += 3;
         }
         else if (bufCmp(text_buffer, "mbr", buffer_index, buffer_len) == true)
         {
             curr_token.type = TOKEN_REGISTER;
-            curr_token.reg  = MBR;
+            curr_token.reg  = Token_MBR;
             buffer_index += 3;
         }
         else if (chrCmp(text_buffer[buffer_index], 'r') && isDigit(text_buffer[buffer_index + 1]))
@@ -287,6 +287,7 @@ int tokenize(TokenList* tokens, char *text_buffer, int buffer_len)
                 curr_token.type = TOKEN_DIRECTIVE;
                 buffer_index++;
                 is_directive = true;
+                break;
                 
             default:
                 // interpret as a string
