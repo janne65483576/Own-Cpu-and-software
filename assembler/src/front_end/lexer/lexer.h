@@ -35,6 +35,7 @@ typedef enum
     // used for the instruction names and values (e.g. ADD )
     TOKEN_NUMBER,
     TOKEN_STRING,
+
 }TokenType;
 
 typedef enum
@@ -60,8 +61,10 @@ typedef struct
     Token *list;
     int capacity;
     int count;
+    int index;
 }TokenList;
 
 int tokenize(TokenList *tokens, char *text_buffer, int buffer_len);
+Token *getToken(TokenList *tokens);
 
 #endif // LEXER_H

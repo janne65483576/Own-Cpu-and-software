@@ -10,6 +10,7 @@
 void initTokenList(TokenList *tokens)
 {
     tokens->count = 0;
+    tokens->index = 0;
     tokens->capacity = 20;
     tokens->list = malloc(sizeof(Token) * tokens->capacity);
 }
@@ -331,3 +332,13 @@ int tokenize(TokenList* tokens, char *text_buffer, int buffer_len)
         freeTokenList(tokens);
         return -1;
 }
+
+Token *getToken(TokenList *tokens)
+{
+    if (tokens->index >= tokens->count)
+    {
+        return NULL;
+    }
+    
+    return &tokens->list[tokens->index++];
+};

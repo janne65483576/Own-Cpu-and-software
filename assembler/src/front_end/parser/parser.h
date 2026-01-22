@@ -1,18 +1,17 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-// real opcodes 
-// OOI = one operand instruction
-
-
-typedef struct
-{
-    char
-}AllowedOperands;
+#include "../instruction.h"
+#include "../instruction_definition.h"
+#include "../lexer/lexer.h"
 
 typedef struct
 {
-    
-}Instruction;
+    Instruction *list;
+    int count;
+    int capacity;
+}InstructionList;
+
+int parseInstructions(InstructionList *instructions, TokenList *tokens);
 
 #endif // PARSER_H

@@ -1,0 +1,15 @@
+main:
+    push r3
+
+    mov mar array
+    mov r0 flags
+    and r0 0b11111100
+    mov flags r0
+    
+loop: 
+    ld r0 mar 
+    call print 
+
+array: 
+    .ascii "test_prog"
+    .
