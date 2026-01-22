@@ -2,7 +2,7 @@
 #define PARSER_H
 
 #include "../instruction.h"
-#include "../instruction_definition.h"
+#include "../directive/directive.h"
 #include "../lexer/lexer.h"
 
 typedef struct
@@ -12,6 +12,40 @@ typedef struct
     int capacity;
 }InstructionList;
 
-int parseInstructions(InstructionList *instructions, TokenList *tokens);
+typedef struct
+{
+    
+}Symbol;
+
+typedef struct
+{
+    
+}SymbolList;
+
+typedef enum
+{
+    INTER_INSTRUCTION,
+    INTER_DIRECTIVE, // no .equ
+}IntermediateType;
+
+typedef struct
+{
+    IntermediateType type;
+    union
+    {
+        DirectiveIntermediate directive;
+
+    };
+}IntermediateRepresentation;
+
+typedef struct
+{
+    IntermediateRepresentation *list;
+    int capacity;
+    int count;
+}IntermediateRepresentationList;
+
+
+int parseTokens(InstructionList *instructions, TokenList *tokens);
 
 #endif // PARSER_H

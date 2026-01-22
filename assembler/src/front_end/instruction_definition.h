@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include "instruction.h"
+#include "expression_parser/expression_parser.h"
 
 #define MAX_OPERANDS 2
 #define MAX_FORMS    7
@@ -464,7 +465,7 @@ const InstructionDefinition instruction_definition[] =
                 .count = 1,
                 .use_register_or_flag_dest = true,
                 .use_register_src          = false,
-                .opcode               = NEG
+                .opcode                    = NEG
             }
         }
     },
@@ -516,14 +517,14 @@ const InstructionDefinition instruction_definition[] =
                 .count = 1,
                 .use_register_or_flag_dest = false,
                 .use_register_src          = false,
-                .opcode               = BZS << DIRECT_16
+                .opcode                    = BZS | DIRECT_16 << 6
             },
             {
                 .operands = {OPERAND_ADDR_8},
                 .count = 1,
                 .use_register_or_flag_dest = false,
                 .use_register_src          = false,
-                .opcode               = BZS << DIRECT_8
+                .opcode                    = BZS | DIRECT_8 << 6
             }
         }
     },
@@ -535,14 +536,14 @@ const InstructionDefinition instruction_definition[] =
                 .count = 1,
                 .use_register_or_flag_dest = false,
                 .use_register_src          = false,
-                .opcode               = BSS << DIRECT_16
+                .opcode                    = BSS | DIRECT_16 << 6
             },
             {
                 .operands = {OPERAND_ADDR_8},
                 .count = 1,
                 .use_register_or_flag_dest = false,
                 .use_register_src          = false,
-                .opcode               = BSS << DIRECT_8
+                .opcode                    = BSS | DIRECT_8 << 6
             }
         }
     },
@@ -554,14 +555,14 @@ const InstructionDefinition instruction_definition[] =
                 .count = 1,
                 .use_register_or_flag_dest = false,
                 .use_register_src          = false,
-                .opcode               = BCC << DIRECT_16
+                .opcode                    = BCC | DIRECT_16 << 6
             },
             {
                 .operands = {OPERAND_ADDR_8},
                 .count = 1,
                 .use_register_or_flag_dest = false,
                 .use_register_src          = false,
-                .opcode               = BCC << DIRECT_8
+                .opcode                    = BCC | DIRECT_8 << 6
             }
         }
     },
@@ -573,14 +574,14 @@ const InstructionDefinition instruction_definition[] =
                 .count = 1,
                 .use_register_or_flag_dest = false,
                 .use_register_src          = false,
-                .opcode               = BZC << DIRECT_16
+                .opcode                    = BZC | DIRECT_16 << 6
             },
             {
                 .operands = {OPERAND_ADDR_8},
                 .count = 1,
                 .use_register_or_flag_dest = false,
                 .use_register_src          = false,
-                .opcode               = BZC << DIRECT_8
+                .opcode                    = BZC | DIRECT_8 << 6
             }
         }
     },

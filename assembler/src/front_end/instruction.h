@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "expression_parser/expression_parser.h"
+
 // typedef enum
 // {   
 //     // arithmetic
@@ -89,6 +91,8 @@ typedef enum
 	ADD_mn, ADDm_mn, ADDr_mn, AND_mn, ANDm_mn, ANDr_mn, BCC_mn, BCS_mn, BVC_mn, BVS_mn, BZC_mn, BZS_mn, CALL_mn, CALLn_mn, CCF_mn, CLF_mn, CVF_mn, CZF_mn, DEC_mn, INC_mn, JMP_mn, LD_mn, MOV_mn, MOVe_mn, MOVr_mn, NEG_mn, NOP_mn, NOT_mn, OR_mn, ORm_mn, ORr_mn, POP_mn, PUSH_mn, RET_mn, RETn_mn, ROL_mn, ROR_mn, SCF_mn, SEF_mn, SHL_mn, SHR_mn, ST_mn, SVF_mn, SZF_mn, XOR_mn, XORm_mn, XORr_mn
 } Mnemonic;
 
+const char *MnemonicStr[] = {"ADD", "ADDm", "ADDr", "AND", "ANDm", "ANDr", "BCC", "BCS", "BVC", "BVS", "BZC", "BZS", "CALL", "CALLn", "CCF", "CLF", "CVF", "CZF", "DEC", "INC", "JMP", "LD", "MOV", "MOVe", "MOVr", "NEG", "NOP", "NOT", "OR", "ORm", "ORr", "POP", "PUSH", "RET", "RETn", "ROL", "ROR", "SCF", "SEF", "SHL", "SHR", "ST", "SVF", "SZF", "XOR", "XORm", "XORr"};
+
 typedef enum
 {
     // arithmetic register
@@ -172,16 +176,18 @@ typedef enum
     // addresses
     OPERAND_ADDR_8,
     OPERAND_ADDR_16,
-    OPERAND_LABEL, // a label is a address where the size is unkown
-    
-    // flag is used for some branch and indirect modification of the flag register
+
     OPERAND_FLAG,
 
     OPERAND_IMM_8,
     OPERAND_IMM_16, // only for mov(e)
 
     OPERAND_REGISTER_16, 
-    OPERAND_REGISTER_8
+    OPERAND_REGISTER_8,
+
+    // intermediate operands
+    OPERAND_EXPRESSION,
+    OPERAND_LABEL
 } OperandKind;
 
 typedef enum 
@@ -218,12 +224,14 @@ typedef struct
         int16_t       immediate_16;
         Register16Bit register_16;
         Register8Bit  register_8;
+        char         *label_text;
+        AstNode      *expression;
     };
 }Operand;
 
 typedef struct
 {
-    Operand *list;
+    Operand list[2]; // cannot use MAX_OPERANDS
     int count;
 }OperandList;
 

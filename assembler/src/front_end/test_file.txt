@@ -8,8 +8,7 @@ main:
     
 loop: 
     ld r0 mar 
-    call print 
+    call print
 
 array: 
     .ascii "test_prog"
-    .

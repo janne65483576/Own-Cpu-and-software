@@ -19,8 +19,12 @@ typedef enum
     // control flow (in expressions)
     TOKEN_LPAREN,
     TOKEN_RPAREN,
-    
-    // expressions
+
+    // TODO: implement it in the lexer
+    // double register
+    TOKEN_COLON,
+
+    // expressions tokens
     TOKEN_PLUS,
     TOKEN_MINUS,
     TOKEN_STAR,
@@ -66,5 +70,6 @@ typedef struct
 
 int tokenize(TokenList *tokens, char *text_buffer, int buffer_len);
 Token *getToken(TokenList *tokens);
+Token *peekToken(TokenList *tokens);
 
 #endif // LEXER_H

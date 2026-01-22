@@ -288,7 +288,6 @@ int tokenize(TokenList* tokens, char *text_buffer, int buffer_len)
                 curr_token.type = TOKEN_DIRECTIVE;
                 buffer_index++;
                 is_directive = true;
-                break;
                 
             default:
                 // interpret as a string
@@ -341,4 +340,14 @@ Token *getToken(TokenList *tokens)
     }
     
     return &tokens->list[tokens->index++];
+};
+
+Token *peekToken(TokenList *tokens)
+{
+    if (tokens->index >= tokens->count)
+    {
+        return NULL;
+    }
+    
+    return &tokens->list[tokens->index];
 };

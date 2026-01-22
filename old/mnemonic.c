@@ -389,7 +389,7 @@ void check_NOP_inst(instruction_t *inst, instruction_info_t *info)
     return;
 }
 
-int cmpchr(const void *a, const void *b) 
+int strCmp(const void *a, const void *b) 
 {
     return strcmp((const char *)a, *(const char **)b);
 }
@@ -402,7 +402,7 @@ int parse_mnemonic(char *mnemonic, instruction_t *instruction)
         exit(EXIT_FAILURE);
     }
     
-    char **result = bsearch(mnemonic, mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0]), sizeof(char *), cmpchr);
+    char **result = bsearch(mnemonic, mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0]), sizeof(char *), strCmp);
     
     if (result == NULL)
     {
@@ -417,7 +417,7 @@ int parse_mnemonic(char *mnemonic, instruction_t *instruction)
 
 int get_intermediate_mnemonic(char *mnemonic)
 {
-    char **result = bsearch(mnemonic, mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0]), sizeof(char *), cmpchr);
+    char **result = bsearch(mnemonic, mnemonics, sizeof(mnemonics) / sizeof(mnemonics[0]), sizeof(char *), strCmp);
     
     if (result == NULL)
     {
