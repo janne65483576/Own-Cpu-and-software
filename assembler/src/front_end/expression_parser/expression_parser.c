@@ -127,7 +127,7 @@ AstNode* parseExpression(TokenList *tokens, int right_binding_power)
     while(true)
     {
         // lexer should ensure that it is an operator
-        Token *operator = peekToken(tokens);
+        Token *operator = peekExpressionToken(tokens);
         if (operator == NULL) break;
 
         // if we encounter an closed paren instead of an operator simply return

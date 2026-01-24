@@ -2,6 +2,7 @@
 #define EXPRESSION_PARSER_H
 
 #include "../lexer/lexer.h"
+#include "expression_definition.h"
 
 const TokenType expression_tokens[] = {    
     TOKEN_STRING, // identifier
@@ -19,14 +20,6 @@ const TokenType expression_tokens[] = {
     TOKEN_LPAREN,
     TOKEN_RPAREN,
 };
-
-typedef struct AstNode
-{
-    Token token;
-
-    struct AstNode *left;
-    struct AstNode *right;
-} AstNode;
 
 AstNode* parseExpression(TokenList *tokens, int rbp);
 int calculate(AstNode *node);

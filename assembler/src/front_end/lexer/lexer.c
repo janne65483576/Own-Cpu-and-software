@@ -5,7 +5,7 @@
 #include <errno.h>
 #include <limits.h>
 
-#include "lexer.h"
+#include "token.h"
 
 void initTokenList(TokenList *tokens)
 {
