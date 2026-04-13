@@ -5,3 +5,4 @@ Process:
 - assembler is finished, but need label support
 - the simulator is changed to the new instruction set. But need a loot of flag arithmetic.
 
+- everything is broken again the assembler need big changes.
